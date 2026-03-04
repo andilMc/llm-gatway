@@ -1,0 +1,85 @@
+# LLM Gateway Configuration
+# Place your API keys here (not for production with sensitive keys)
+
+providers:
+  ollama:
+    base_url: "https://ollama.com/v1"
+    strategy: "sequential"
+    timeout: 120
+    max_retries: 3
+    keys:
+      - key: "YOUR_OLLAMA_API_KEY_HERE"
+        models: ["logic-supreme", "code-architect", "author-pro", "omni-think"]
+      - key: "YOUR_OLLAMA_API_KEY_HERE"
+        models: ["logic-supreme", "code-architect", "author-pro", "omni-think"]
+      - key: "YOUR_OLLAMA_API_KEY_HERE"
+        models: ["logic-supreme", "code-architect", "author-pro", "omni-think"]
+      - key: "YOUR_OLLAMA_API_KEY_HERE"
+        models: ["logic-supreme", "code-architect", "author-pro", "omni-think"]
+      - key: "YOUR_OLLAMA_API_KEY_HERE"
+        models: ["logic-supreme", "code-architect", "author-pro", "omni-think"]
+      - key: "YOUR_OLLAMA_API_KEY_HERE"
+        models: ["logic-supreme", "code-architect", "author-pro", "omni-think"]
+      - key: "YOUR_OLLAMA_API_KEY_HERE"
+        models: ["logic-supreme", "code-architect", "author-pro", "omni-think"]
+    # Model mappings (alias -> actual model name)
+    models:
+      logic-supreme: "kimi-k2.5:cloud"
+      code-architect: "qwen3-coder:480b-cloud"
+      author-pro: "glm-5:cloud"
+      omni-think: "deepseek-v3.2:cloud"
+
+  nvidia:
+    base_url: "https://integrate.api.nvidia.com/v1"
+    strategy: "fallback"
+    timeout: 120
+    max_retries: 3
+    keys:
+      - key: "YOUR_NVIDIA_API_KEY_HERE"
+        models: ["logic-supreme", "code-architect", "author-pro", "omni-think"]
+    # Model mappings
+    models:
+      logic-supreme: "moonshotai/kimi-k2.5"
+      code-architect: "qwen/qwen3-coder-480b-a35b-instruct"
+      author-pro: "deepseek-ai/deepseek-v3.2" # Using DS V3.2 as elite writing fallback
+      omni-think: "deepseek-ai/deepseek-v3.2"
+
+# Model aliases - maps generic names to providers
+models:
+  # 'logic-supreme' focuses on deep reasoning
+  "logic-supreme":
+    providers: ["ollama", "nvidia"]
+  
+  # 'code-architect' for expert coding
+  "code-architect":
+    providers: ["ollama", "nvidia"]
+  
+  # 'author-pro' for high-quality writing
+  "author-pro":
+    providers: ["ollama", "nvidia"]
+
+  # 'omni-think' for general purpose performance
+  "omni-think":
+    providers: ["ollama", "nvidia"]
+  
+  # OpenAI-compatible model names for backward compatibility or direct access
+  "gpt-4":
+    providers: ["ollama", "nvidia"]
+  
+  "gpt-3.5-turbo":
+    providers: ["ollama"]
+
+  "deepseek-v3.2":
+    providers: ["ollama", "nvidia"]
+
+# Gateway settings
+gateway:
+  host: "0.0.0.0"
+  port: 8000
+  log_level: "INFO"
+  max_workers: 10
+
+# Circuit breaker settings
+circuit_breaker:
+  failure_threshold: 3
+  recovery_timeout: 30.0  # seconds
