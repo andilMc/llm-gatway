@@ -32,20 +32,23 @@ async def stream_relay(
                 if data_str == "[DONE]":
                     yield "data: [DONE]\n\n"
                     break
-                
+
                 try:
                     # Parse and inject provider/model info
                     # We do a lightweight injection to maintain speed
                     if provider:
                         chunk_data = json.loads(data_str)
                         chunk_data["provider"] = provider
-                        if "model" not in chunk_data or chunk_data["model"] == "unknown":
+                        if (
+                            "model" not in chunk_data
+                            or chunk_data["model"] == "unknown"
+                        ):
                             chunk_data["model"] = model
-                        
+
                         yield f"data: {json.dumps(chunk_data)}\n\n"
                     else:
                         yield f"{line}\n\n"
-                        
+
                 except Exception as parse_error:
                     # Fallback to direct relay if JSON is malformed
                     logger.debug(f"Stream JSON parse error: {parse_error}")
@@ -57,20 +60,6 @@ async def stream_relay(
         raise
     except Exception as e:
         logger.error(f"Error in stream relay: {e}")
-        error_chunk = {
-            "object": "chat.completion.chunk",
-            "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
-            "error": {"message": str(e), "type": "stream_error"}
-        }
-        yield f"data: {json.dumps(error_chunk)}\n\n"
-        yield "data: [DONE]\n\n"
-
-    except asyncio.CancelledError:
-        logger.info("Stream relay cancelled")
-        raise
-    except Exception as e:
-        logger.error(f"Error in stream relay: {e}")
-        # Send error chunk
         error_chunk = {
             "object": "chat.completion.chunk",
             "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],

@@ -16,6 +16,8 @@ from .models import (
     ModelListResponse,
     ModelInfo,
     HealthResponse,
+    ToolDefinition,
+    ToolChoice,
 )
 from .config_loader import ConfigLoader
 from .router import ProviderRouter
@@ -154,10 +156,8 @@ async def chat_completions(request: Request):
         body = await request.json()
         chat_request = ChatCompletionRequest(**body)
 
-        # Convert messages to dicts
-        messages = [
-            {"role": msg.role, "content": msg.content} for msg in chat_request.messages
-        ]
+        # Convert messages to dicts using the proper method to preserve tool calls
+        messages = [msg.to_dict() for msg in chat_request.messages]
 
         # Get additional parameters
         kwargs = {
@@ -169,6 +169,30 @@ async def chat_completions(request: Request):
             "frequency_penalty": chat_request.frequency_penalty,
             "seed": chat_request.seed,
         }
+
+        # Add tools and tool_choice if present
+        if chat_request.tools:
+            kwargs["tools"] = [
+                {
+                    "type": tool.type,
+                    "function": {
+                        "name": tool.function.name,
+                        "description": tool.function.description,
+                        "parameters": tool.function.parameters,
+                    },
+                }
+                for tool in chat_request.tools
+            ]
+
+        if chat_request.tool_choice is not None:
+            if isinstance(chat_request.tool_choice, str):
+                kwargs["tool_choice"] = chat_request.tool_choice
+            else:
+                kwargs["tool_choice"] = {
+                    "type": chat_request.tool_choice.type,
+                    "function": {"name": chat_request.tool_choice.function.name},
+                }
+
         # Remove None values
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 

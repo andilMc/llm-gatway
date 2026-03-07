@@ -1,0 +1,637 @@
+j'ai un soucis avec ce projet car les model on une difficulter a bien utiliser  les tools tu peut trouver l'un des erreur dans ce fichier @erro.txt donc analyse le projet et dis moi pourquoi je peut avoir ce genre d'erreur.
+ txt  erro.txt 
+Thinking: L'utilisateur a un problème avec ce projet où les modèles ont des difficultés à bien utiliser les tools. Il veut que j'analyse le projet et que je lui explique pourquoi il peut avoir ce genre d'erreur. Le fichier erro.txt montre des erreurs où:
+1. Le modèle essaie d'appeler un tool vide (tool=)
+2. Le tool 'read' est appelé avec des arguments invalides (filePath undefined)
+Je dois d'abord explorer le projet pour comprendre sa structure et comment il gère les tools.
+Je vais explorer le projet pour comprendre la structure et identifier les causes potentielles de ces erreurs.
+✱ Glob "**/*.{ts,js,json,md}" (1 match)
+→ Read package.json 
+Error: File not found: /home/andil-mc/Documents/Project/llm-gateway/package.json
+→ Read README.md 
+# Find project files
+$ find /home/andil-mc/Documents/Project/llm-gateway -type f \( -name "*.py" -o -name "*.ts" -o -name "*.js" -o -name "*.yaml" -o -name "*.yml" -o -name "*.json" \) | head -30
+/home/andil-mc/Documents/Project/llm-gateway/config/providers.yml
+/home/andil-mc/Documents/Project/llm-gateway/.venv/lib/python3.14/site-packages/uvloop/__init__.py
+/home/andil-mc/Documents/Project/llm-gateway/.venv/lib/python3.14/site-packages/uvloop/includes/__init__.py
+/home/andil-mc/Documents/Project/llm-gateway/.venv/lib/python3.14/site-packages/uvloop/_version.py
+/home/andil-mc/Documents/Project/llm-gateway/.venv/lib/python3.14/site-packages/uvloop/_noop.py
+/home/andil-mc/Documents/Project/llm-gateway/.venv/lib/python3.14/site-packages/uvloop/_testbase.py
+/home/andil-mc/Documents/Project/llm-gateway/.venv/lib/python3.14/site-packages/yaml/representer.py
+/home/andil-mc/Documents/Project/llm-gateway/.venv/lib/python3.14/site-packages/yaml/composer.py
+/home/andil-mc/Documents/Project/llm-gateway/.venv/lib/python3.14/site-packages/yaml/dumper.py
+/home/andil-mc/Documents/Project/llm-gateway/.venv/lib/python3.14/site-packages/yaml/cyaml.py
+…
+Click to expand
+✱ Glob "**/*.py" (13 matches)
+✱ Glob "**/*.toml" 
+✱ Glob "**/*.lock" 
+✱ Glob "pyproject.toml" 
+✱ Glob "requirements*.txt" (1 match)
+# List root directory
+$ ls -la /home/andil-mc/Documents/Project/llm-gateway/
+total 52
+drwxrwxr-x 8 andil-mc andil-mc 4096 Mar  7 10:50 .
+drwxrwxr-x 9 andil-mc andil-mc 4096 Mar  4 15:14 ..
+drwxrwxr-x 7 andil-mc andil-mc 4096 Mar  7 09:50 .git
+-rw-rw-r-- 1 andil-mc andil-mc  246 Mar  4 19:08 .gitignore
+drwxrwxr-x 3 andil-mc andil-mc 4096 Mar  7 08:41 .ruff_cache
+drwxrwxr-x 5 andil-mc andil-mc 4096 Mar  4 15:20 .venv
+-rw-rw-r-- 1 andil-mc andil-mc 1913 Mar  4 15:02 Makefile
+-rw-rw-r-- 1 andil-mc andil-mc 2570 Mar  7 08:42 README.md
+drwxrwxr-x 2 andil-mc andil-mc 4096 Mar  4 19:05 config
+…
+Click to expand
+Thinking: L'utilisateur a un projet Python (pas de Node.js/package.json). C'est un "LLM Gateway" qui agit comme une passerelle API. Les erreurs dans erro.txt montrent que le modèle a du mal à utiliser correctement les outils. Voyons les fichiers Python principaux pour comprendre la structure et voir si je peux identifier pourquoi le modèle génère ces erreurs.
+→ Read gateway/server.py 
+→ Read requirements.txt 
+# List gateway directory
+$ ls -la /home/andil-mc/Documents/Project/llm-gateway/gateway/
+total 68
+drwxrwxr-x 5 andil-mc andil-mc  4096 Mar  4 15:22 .
+drwxrwxr-x 8 andil-mc andil-mc  4096 Mar  7 10:50 ..
+-rw-rw-r-- 1 andil-mc andil-mc   132 Mar  4 14:50 __init__.py
+drwxrwxr-x 2 andil-mc andil-mc  4096 Mar  4 18:26 __pycache__
+-rw-rw-r-- 1 andil-mc andil-mc  5195 Mar  4 15:00 config_loader.py
+drwxrwxr-x 3 andil-mc andil-mc  4096 Mar  4 15:22 core
+-rw-rw-r-- 1 andil-mc andil-mc  4265 Mar  4 16:32 models.py
+drwxrwxr-x 3 andil-mc andil-mc  4096 Mar  7 08:41 providers
+-rw-rw-r-- 1 andil-mc andil-mc 14101 Mar  4 18:26 router.py
+…
+Click to expand
+Thinking: L'erreur dans erro.txt montre clairement ce qui se passe :
+3: ⚙ invalid [tool=, error=Model tried to call unavailable tool ''. Available tools: invalid, question, bash, read, glob, grep, edit, write, task, webfetch, todowrite, skill.]
+4: ⚙ invalid [tool=, error=Model tried to call unavailable tool ''. Available tools: invalid, question, bash, read, glob, grep, edit, write, task, webfetch, todowrite, skill.]
+L'outil appelé a un nom vide '' - c'est un outil invalide. Cela se produit généralement quand le modèle n'est pas bien configuré pour le tool calling. Je vais maintenant regarder le fichier streaming.py et les autres fichiers importants pour comprendre le problème.
+→ Read gateway/streaming.py 
+→ Read gateway/models.py 
+→ Read gateway/router.py 
+Thinking: L'utilisateur me demande d'analyser le projet et de comprendre pourquoi les modèles ont des difficultés à utiliser les outils. Le fichier d'erreur montre que le modèle a essayé d'appeler un outil vide (tool=) et que le read tool a été appelé avec filePath undefined.
+En regardant le code, je vois que c'est un LLM Gateway qui sert d'API compatible OpenAI. Le problème vient probablement de la manière dont les outils sont formatés et passés aux modèles.
+Regardons les modèles Pydantic dans models.py. Je vois qu'il y a des champs pour tools et tool_calls, tool_call_id dans les modèles Message et ChatCompletionRequest.
+Le problème dans l'erreur est que :
+1. Le modèle a essayé d'appeler un outil vide (tool= sans nom)
+2. Le read tool a été appelé avec filePath undefined
+Cela semble être un problème de formatage des messages lors de la transmission entre le modèle et l'API. Le gateway reçoit probablement des messages avec des tool_calls mais ne les formate pas correctement pour les renvoyer au modèle.
+En regardant les modèles Message dans models.py, je vois que tool_calls est de type Optional[List[Dictstr, Any]] mais il n'y a pas de modèle Pydantic spécifique pour ToolCall, ce qui pourrait causer des problèmes de validation.
+Le problème principal est que :
+1. Les messages avec tool_calls ne sont pas correctement sérialisés/désérialisés
+2. Le champ tool_call_id n'est pas géré correctement
+3. La structure des tool_calls n'est pas typée correctement
+Je vais vérifier comment les messages sont traités dans le router et les providers.
+D'après l'analyse du projet et du fichier d'erreur, j'ai identifié plusieurs problèmes :
+Problèmes identifiés :
+1. Formatage des messages avec tool_calls (gateway/models.py:20-25)
+Les tool_calls et tool_call_id sont définis comme Dict[str, Any] sans structure typée, ce qui cause des problèmes de sérialisation.
+2. Pas de modèle ToolCall 
+Le projet manque un modèle Pydantic pour structurer correctement les appels d'outils, ce qui fait que les modèles LLM reçoivent des données mal formatées.
+3. Conversion des messages dans le router (gateway/router.py:158-160)
+Les messages sont convertis en dictionnaires simples sans gestion des tool_calls :
+messages = [
+    {"role": msg.role, "content": msg.content} for msg in chat_request.messages
+]
+Cela perd les informations sur les outils.
+4. Gestion des tool_calls dans les providers
+Les providers n'ont pas de logique pour formater correctement les réponses avec tool_calls dans le streaming.
+Pourquoi l'erreur se produit :
+L'erreur dans votre fichier montre que :
+1. Le modèle essaye d'appeler un outil vide (tool=)
+2. Le read tool reçoit filePath: undefined
+Cela arrive parce que :
+- Les messages contenant tool_calls ne sont pas correctement transmis au modèle
+- Les réponses du modèle avec tool_calls ne sont pas correctement formatées en retour
+- Le schéma de réponse n'est pas respecté par les modèles qui reçoivent des données mal structurées
+Voulez-vous que je propose des corrections pour supporter correctement les tool calls ?
+▣  Plan · kimi-k2.5:cloud · 30.2s
+oui propose moi une solution
+Thinking: The user wants me to propose a solution for the tool calls issue. Let me create a comprehensive plan to fix the problems I identified.
+Since plan mode is active, I need to:
+1. Think through the solution
+2. Present a plan to the user
+3. Ask for confirmation before implementing
+Let me analyze what needs to be fixed:
+1. models.py: Need to add proper ToolCall and ToolCallFunction models, and update the Message model to use them
+2. server.py: Need to update the message conversion to preserve tool_calls
+3. streaming.py: Need to handle tool_calls in the streaming response
+4. router.py: Need to ensure tool_calls are passed through correctly
+5. providers: Need to check how they handle tool_calls in requests and responses
+Let me create a detailed plan.
+Je vais créer un plan détaillé pour corriger la gestion des tool calls. Laissez-moi d'abord examiner les fichiers providers pour comprendre comment ils gèrent les requêtes.
+→ Read gateway/providers/base_provider.py 
+→ Read gateway/providers/ollama_provider.py 
+→ Read config/providers.yml 
+Thinking: Maintenant j'ai une vision complète du projet. Voici mon analyse et le plan pour corriger les problèmes de tool calls :
+Problèmes identifiés :
+1. Dans models.py :
+   - Les champs tool_calls et tool_call_id sont définis comme List[Dict[str, Any]] sans structure typée
+   - Pas de modèle ToolCall défini
+   - Le champ content accepte Union[str, List[Dict[str, Any]]] mais sans validation
+2. Dans server.py (ligne 158-160) :
+   - Les messages sont convertis en dictionnaires simples :
+      messages = [
+       {"role": msg.role, "content": msg.content} for msg in chat_request.messages
+   ]
+      - Cela perd les tool_calls, tool_call_id, et name
+3. Dans ollama_provider.py :
+   - La méthode _map_request ne passe pas les paramètres tools et tool_choice
+   - Pas de gestion des tool calls dans les réponses
+4. Le problème principal :
+   - Quand un modèle LLM génère un appel d'outil, il retourne un message avec tool_calls
+   - Ce message n'est pas correctement formaté/transmis à travers le gateway
+   - Les messages d'entrée contenant tool_calls sont perdus lors de la conversion
+Plan de correction :
+1. Créer des modèles typés pour ToolCall dans models.py
+2. Modifier la conversion des messages dans server.py pour préserver tous les champs
+3. Passer les paramètres tools dans les requêtes provider
+4. Améliorer le parsing des réponses pour gérer les tool calls
+Voulez-vous que je procède à ces corrections ?
+Oui, je vais maintenant créer un plan détaillé pour corriger ces problèmes.
+# Todos
+[ ] 
+Créer les modèles typés pour ToolCall et ToolCallFunction dans models.py
+[ ] 
+Mettre à jour le modèle Message pour supporter correctement les tool_calls
+[ ] 
+Modifier la conversion des messages dans server.py pour préserver tous les champs
+[ ] 
+Ajouter tools et tool_choice dans ChatCompletionRequest
+[ ] 
+Modifier _map_request dans ollama_provider.py pour passer tools et tool_choice
+[ ] 
+Améliorer le parsing des réponses streaming pour gérer tool calls
+[ ] 
+Ajouter une méthode utilitaire pour convertir les messages en dictionnaires
+[ ] 
+Tester et valider les corrections
+Thinking: Le problème principal est que les tool calls ne sont pas correctement gérés dans votre gateway. Voici pourquoi vous avez ces erreurs :
+Analyse des erreurs :
+1. Lignes 3-4 : Le modèle tente d'appeler un outil avec un nom vide (tool=)
+2. Lignes 7-17 : Le read tool reçoit filePath: undefined car la conversion des messages perd les champs
+Causes racines :
+1. Modèles non-typés (models.py): Les tool_calls sont définis comme List[Dict[str, Any]] sans structure claire
+2. Perte de données (server.py:158-159): La conversion des messages ne conserve que role et content, perdant tool_calls et tool_call_id
+3. Pas de support tools : tools et tool_choice dans la requête ne sont pas transmis aux providers
+4. Streaming non-géré : Les réponses avec tool_calls dans les chunks ne sont pas correctement traitées
+Solution proposée :
+Je vais créer/modifier ces fichiers :
+1. models.py : Ajouter des modèles typés pour ToolCall, ToolCallFunction, et améliorer Message
+2. server.py : Modifier la conversion des messages pour préserver tous les champs + transmettre tools/tool_choice
+3. ollama_provider.py : Ajouter tools et tool_choice dans _map_request
+4. streaming.py : Améliorer le parsing pour gérer les tool calls dans les chunks
+Voulez-vous que je procède avec ces modifications ?
+Le problème principal est que les tool calls ne sont pas correctement gérés dans votre gateway. Voici pourquoi vous avez ces erreurs :
+Analyse des erreurs :
+1. Lignes 3-4 : Le modèle tente d'appeler un outil avec un nom vide (tool=)
+2. Lignes 7-17 : Le read tool reçoit filePath: undefined car la conversion des messages perd les champs
+Causes racines :
+1. Modèles non-typés (models.py): Les tool_calls sont définis comme List[Dict[str, Any]] sans structure claire
+2. Perte de données (server.py:158-159): La conversion des messages ne conserve que role et content, perdant tool_calls et tool_call_id
+3. Pas de support tools : tools et tool_choice dans la requête ne sont pas transmis aux providers
+4. Streaming non-géré : Les réponses avec tool_calls dans les chunks ne sont pas correctement traitées
+Solution proposée :
+Je vais créer/modifier ces fichiers :
+1. models.py : Ajouter des modèles typés pour ToolCall, ToolCallFunction, et améliorer Message
+2. server.py : Modifier la conversion des messages pour préserver tous les champs + transmettre tools/tool_choice
+3. ollama_provider.py : Ajouter tools et tool_choice dans _map_request
+4. streaming.py : Améliorer le parsing pour gérer les tool calls dans les chunks
+Voulez-vous que je procède avec ces modifications ?
+▣  Plan · kimi-k2.5:cloud · 31.5s
+oui
+Thinking: L'utilisateur a confirmé qu'il veut que je procède avec les modifications. Je vais maintenant implémenter les corrections.
+Commençons par mettre à jour le fichier models.py avec les modèles typés pour ToolCall, puis modifier server.py, ollama_provider.py, et enfin streaming.py.
+# Todos
+[•] 
+Créer les modèles typés pour ToolCall et ToolCallFunction dans models.py
+[ ] 
+Mettre à jour le modèle Message pour supporter correctement les tool_calls
+[ ] 
+Modifier la conversion des messages dans server.py pour préserver tous les champs
+[ ] 
+Ajouter tools et tool_choice dans ChatCompletionRequest
+[ ] 
+Modifier _map_request dans ollama_provider.py pour passer tools et tool_choice
+[ ] 
+Améliorer le parsing des réponses streaming pour gérer tool calls
+[ ] 
+Ajouter une méthode utilitaire pour convertir les messages en dictionnaires
+[ ] 
+Tester et valider les corrections
+# Wrote gateway/models.py
+"""Pydantic models for request/response handling."""
+from typing import List, Optional, Dict, Any, Union, Literal
+from pydantic import BaseModel, Field
+from datetime import datetime
+import uuid
+class ToolCallFunction(BaseModel):
+    """Represents the function called by a tool call."""
+    
+    name: str = Field(..., description="The name of the function to call")
+    arguments: str = Field(..., description="The arguments to call the function with, as a JSON string")
+class ToolCall(BaseModel):
+    """Represents a tool call in a message."""
+    
+    id: str = Field(..., description="The ID of the tool call")
+    type: Literal["function"] = Field("function", description="The type of tool call")
+    function: ToolCallFunction = Field(..., description="The function to call")
+class FunctionDefinition(BaseModel):
+    """Definition of a function that can be called by the model."""
+    
+    name: str = Field(..., description="The name of the function")
+    description: Optional[str] = Field(None, description="A description of the function")
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="The parameters the function accepts, as a JSON Schema object"
+    )
+class ToolDefinition(BaseModel):
+    """Definition of a tool available to the model."""
+    
+    type: Literal["function"] = Field("function", description="The type of the tool")
+    function: FunctionDefinition = Field(..., description="The function definition")
+class ToolChoiceFunction(BaseModel):
+    """Function specification when forcing a specific tool choice."""
+    
+    name: str = Field(..., description="The name of the function to call")
+class ToolChoice(BaseModel):
+    """Specification for which tool the model should use."""
+    
+    type: Literal["function"] = Field("function", description="The type of the tool")
+    function: ToolChoiceFunction = Field(..., description="The function to use")
+class Message(BaseModel):
+    role: str = Field(
+        ...,
+        description="The role of the message author (system, user, assistant, tool)",
+    )
+    content: Optional[Union[str, List[Dict[str, Any]]]] = Field(
+        None, description="The content of the message"
+    )
+    name: Optional[str] = Field(
+        None, description="The name of the author of this message"
+    )
+    tool_calls: Optional[List[ToolCall]] = Field(
+        None, description="Tool calls made by the assistant"
+    )
+    tool_call_id: Optional[str] = Field(
+        None, description="Tool call that this message is responding to"
+    )
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert message to dictionary format suitable for API requests."""
+        result: Dict[str, Any] = {"role": self.role}
+        
+        if self.content is not None:
+            result["content"] = self.content
+        
+        if self.name is not None:
+            result["name"] = self.name
+        
+        if self.tool_calls is not None:
+            result["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "type": tc.type,
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments
+                    }
+                }
+                for tc in self.tool_calls
+            ]
+        
+        if self.tool_call_id is not None:
+            result["tool_call_id"] = self.tool_call_id
+        
+        return result
+class ChatCompletionRequest(BaseModel):
+    model: str = Field(..., description="ID of the model to use")
+    messages: List[Message] = Field(
+        ..., description="A list of messages comprising the conversation"
+    )
+    temperature: Optional[float] = Field(1.0, ge=0.0, le=2.0)
+    top_p: Optional[float] = Field(1.0, ge=0.0, le=1.0)
+    n: Optional[int] = Field(
+        1, ge=1, description="How many chat completion choices to generate"
+    )
+    stream: Optional[bool] = Field(
+        False, description="Whether to stream back partial progress"
+    )
+    stop: Optional[Union[str, List[str]]] = Field(None, description="Stop sequences")
+    max_tokens: Optional[int] = Field(
+        None, description="Maximum number of tokens to generate"
+    )
+    presence_penalty: Optional[float] = Field(0.0, ge=-2.0, le=2.0)
+    frequency_penalty: Optional[float] = Field(0.0, ge=-2.0, le=2.0)
+    logit_bias: Optional[Dict[str, int]] = Field(
+        None, description="Modify likelihood of specified tokens"
+    )
+    user: Optional[str] = Field(
+        None, description="A unique identifier representing your end-user"
+    )
+    response_format: Optional[Dict[str, str]] = Field(
+        None, description="Response format configuration"
+    )
+    seed: Optional[int] = Field(None, description="Seed for deterministic sampling")
+    tools: Optional[List[ToolDefinition]] = Field(
+        None, description="List of tools the model may call"
+    )
+    tool_choice: Optional[Union[str, ToolChoice]] = Field(
+        None, description="Tool choice configuration ('auto', 'none', or specific tool)"
+    )
+class Usage(BaseModel):
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+class Choice(BaseModel):
+    index: int = 0
+    message: Message
+    finish_reason: Optional[str] = Field(
+        None, description="stop, length, tool_calls, content_filter, or null"
+    )
+    logprobs: Optional[Dict[str, Any]] = None
+class ChatCompletionResponse(BaseModel):
+    id: str = Field(default_factory=lambda: f"chatcmpl-{uuid.uuid4().hex[:24]}")
+    object: str = "chat.completion"
+    created: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
+    model: str
+    choices: List[Choice]
+    usage: Usage
+    system_fingerprint: Optional[str] = None
+class StreamChoice(BaseModel):
+    index: int = 0
+    delta: Dict[str, Any] = Field(default_factory=dict)
+    finish_reason: Optional[str] = None
+    logprobs: Optional[Dict[str, Any]] = None
+class ChatCompletionStreamResponse(BaseModel):
+    id: str = Field(default_factory=lambda: f"chatcmpl-{uuid.uuid4().hex[:24]}")
+    object: str = "chat.completion.chunk"
+    created: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
+    model: str
+    choices: List[StreamChoice]
+    system_fingerprint: Optional[str] = None
+class ModelInfo(BaseModel):
+    id: str
+    object: str = "model"
+    created: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
+    owned_by: str = "llm-gateway"
+class ModelListResponse(BaseModel):
+    object: str = "list"
+    data: List[ModelInfo]
+class HealthStatus(BaseModel):
+    status: str
+    provider: str
+    healthy: bool
+    available_keys: int
+    total_keys: int
+    active_requests: int
+    last_error: Optional[str] = None
+class HealthResponse(BaseModel):
+    status: str = "ok"
+    timestamp: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
+    providers: Dict[str, HealthStatus]
+Thinking: Bien, j'ai mis à jour models.py avec les modèles typés. Maintenant je dois mettre à jour server.py pour utiliser la méthode to_dict() des messages.
+# Todos
+[✓] 
+Créer les modèles typés pour ToolCall et ToolCallFunction dans models.py
+[✓] 
+Mettre à jour le modèle Message pour supporter correctement les tool_calls
+[•] 
+Modifier la conversion des messages dans server.py pour préserver tous les champs
+[✓] 
+Ajouter tools et tool_choice dans ChatCompletionRequest
+[ ] 
+Modifier _map_request dans ollama_provider.py pour passer tools et tool_choice
+[ ] 
+Améliorer le parsing des réponses streaming pour gérer tool calls
+[✓] 
+Ajouter une méthode utilitaire pour convertir les messages en dictionnaires
+[ ] 
+Tester et valider les corrections
+Thinking: Maintenant, je dois mettre à jour server.py pour utiliser la nouvelle méthode to_dict() et transmettre tools/tool_choice.
+← Edit gateway/server.py
+    ChatCompletionResponse,
+    ModelListResponse,
+    ModelInfo,
+    HealthResponse,
+)
+from .config_loader import ConfigLoader
+from .router import ProviderRouter
+from .providers import OllamaProvider
+Thinking: L'import a été ajouté. Maintenant, je dois modifier la conversion des messages pour utiliser msg.to_dict() et ajouter le passage des tools/tool_choice.
+← Edit gateway/server.py
+# Parse request
+body = await request.json()
+chat_request = ChatCompletionRequest(**body)
+# Convert messages to dicts
+messages = [
+    {"role": msg.role, "content": msg.content} for msg in chat_request.messages
+]
+# Get additional parameters
+kwargs = {
+    "temperature": chat_request.temperature,
+Thinking: J'ai remplacé la conversion simple par msg.to_dict() qui va préserver tous les champs des messages y compris les tool_calls.
+Maintenant je dois mettre à jour la partie où les arguments sont transmis à la route pour inclure tools et tool_choice.
+← Edit gateway/server.py
+    "presence_penalty": chat_request.presence_penalty,
+    "frequency_penalty": chat_request.frequency_penalty,
+    "seed": chat_request.seed,
+}
+# Remove None values
+kwargs = {k: v for k, v in kwargs.items() if v is not None}
+logger.info(
+Thinking: Maintenant, mettons à jour le provider Ollama pour passer tools et tool_choice :
+# Todos
+[✓] 
+Créer les modèles typés pour ToolCall et ToolCallFunction dans models.py
+[✓] 
+Mettre à jour le modèle Message pour supporter correctement les tool_calls
+[✓] 
+Modifier la conversion des messages dans server.py pour préserver tous les champs
+[✓] 
+Ajouter tools et tool_choice dans ChatCompletionRequest
+[•] 
+Modifier _map_request dans ollama_provider.py pour passer tools et tool_choice
+[ ] 
+Améliorer le parsing des réponses streaming pour gérer tool calls
+[✓] 
+Ajouter une méthode utilitaire pour convertir les messages en dictionnaires
+[ ] 
+Tester et valider les corrections
+Thinking: L'étape 5 est en cours - je dois modifier _map_request dans ollama_provider.py pour passer tools et tool_choice.
+← Edit gateway/providers/ollama_provider.py
+    if "frequency_penalty" in kwargs:
+        request["frequency_penalty"] = kwargs["frequency_penalty"]
+    if "seed" in kwargs:
+        request["seed"] = kwargs["seed"]
+    return request
+async def chat_completion(
+    self, messages: List[Dict[str, Any]], model: str, stream: bool = False, alias: Optional[str] = None, **kwargs
+) -> ProviderResponse:
+    """Send chat completion request to Ollama with automatic key rotation on failure."""
+    import httpx
+    self.total_requests += 1
+    model = model.strip()
+    
+    # We try until we run out of valid keys or reach max_retries
+    tried_keys = set()
+    last_response = None
+    
+    for attempt in range(self.max_retries * 2): # Allow more attempts if we have many keys
+        key_obj = await self.key_manager.get_next_key(model, alias=alias)
+        
+        # If no more keys or we've tried all of them and they are failing
+        if not key_obj or key_obj.key in tried_keys:
+            break
+            
+        tried_keys.add(key_obj.key)
+        request_body = self._map_request(messages, model, stream, **kwargs)
+        try:
+                f"{self.base_url}/chat/completions",
+                headers=self._get_headers(key_obj.key),
+                json=request_body,
+            )
+            
+            last_response = response
+            if response.status_code == 200:
+                await self.key_manager.mark_success(key_obj)
+            if response.status_code == 429:
+                retry_after = QuotaManager.extract_retry_after(response)
+                await self.key_manager.mark_rate_limited(key_obj, retry_after)
+                logger.warning(f"{self.name}: Key rate limited, retrying with next key...")
+                continue # Try next key
+            if response.status_code in [402, 403]:
+                await self.key_manager.mark_quota_exhausted(key_obj)
+                logger.warning(f"{self.name}: Key quota exhausted, retrying with next key...")
+                continue # Try next key
+            # Other API errors (5xx etc)
+            await self.key_manager.mark_error(key_obj)
+            logger.warning(f"{self.name}: API error {response.status_code}, retrying with next key...")
+            continue
+        except (httpx.TimeoutException, httpx.NetworkError) as e:
+            await self.key_manager.mark_error(key_obj)
+            logger.warning(f"{self.name}: Network/Timeout error, retrying with next key...")
+            continue
+        except Exception as e:
+            await self.key_manager.mark_error(key_obj)
+            logger.error(f"{self.name}: Unexpected request error: {e}")
+    # If we reach here, we exhausted available keys
+    self.failed_requests += 1
+    error_msg = "All API keys exhausted"
+    if last_response is not None:
+         error_msg = f"All API keys exhausted. Last error {last_response.status_code}: {last_response.text}"
+         
+    return ProviderResponse(
+        success=False,
+        error=Exception(error_msg),
+        status_code=503,
+    )
+async def chat_completion_stream(
+    self, messages: List[Dict[str, Any]], model: str, alias: Optional[str] = None, **kwargs
+) -> AsyncGenerator[str, None]:
+    """Stream chat completion from Ollama with automatic key rotation on failure."""
+    import httpx
+        last_error = "All API keys exhausted"
+        for attempt in range(self.max_retries * 2):
+            key_obj = await self.key_manager.get_next_key(model, alias=alias)
+            
+            if not key_obj or key_obj.key in tried_keys:
+                break
+                
+            tried_keys.add(key_obj.key)
+            request_body = self._map_request(messages, model, stream=True, **kwargs)
+            try:
+                    last_error = f"API error {response.status_code}: {error_data}"
+                    if response.status_code == 429:
+                        retry_after = QuotaManager.extract_retry_after(response)
+                        await self.key_manager.mark_rate_limited(key_obj, retry_after)
+                        continue
+                        
+                    if response.status_code in [402, 403]:
+                        await self.key_manager.mark_quota_exhausted(key_obj)
+                        continue
+                        
+                    await self.key_manager.mark_error(key_obj)
+                    continue
+            except (httpx.TimeoutException, httpx.NetworkError) as e:
+            "error": {
+                "message": last_error,
+                "type": "insufficient_quota",
+                "param": None,
+                "code": "keys_exhausted"
+            }
+        }
+        yield f"data: {json.dumps(error_data)}\n\n"
+        yield "data: [DONE]\n\n"
+Thinking: J'ai modifié _map_request dans ollama_provider.py pour inclure tools et tool_choice dans la requête vers Ollama. Maintenant, passons à l'amélioration du streaming pour gérer les tool calls.
+# Todos
+[✓] 
+Créer les modèles typés pour ToolCall et ToolCallFunction dans models.py
+[✓] 
+Mettre à jour le modèle Message pour supporter correctement les tool_calls
+[✓] 
+Modifier la conversion des messages dans server.py pour préserver tous les champs
+[✓] 
+Ajouter tools et tool_choice dans ChatCompletionRequest
+[✓] 
+Modifier _map_request dans ollama_provider.py pour passer tools et tool_choice
+[•] 
+Améliorer le parsing des réponses streaming pour gérer tool calls
+[✓] 
+Ajouter une méthode utilitaire pour convertir les messages en dictionnaires
+[ ] 
+Tester et valider les corrections
+Thinking: L'amélioration du streaming pour gérer les tool calls est une tâche plus complexe qui nécessite de parser correctement les deltas contenant tool_calls. Cependant, avant de continuer, laissez-moi vérifier si les changements actuels fonctionnent correctement.
+Je vais aussi corriger les erreurs LSP dans router.py et streaming.py que j'ai remarquées.
+Mais d'abord, laissez-moi vérifier que le code compile bien. Je vais aussi créer un petit script de test pour valider que les tool calls sont correctement gérés.
+← Edit gateway/streaming.py
+                data_str = line[6:].strip()
+                if data_str == "[DONE]":
+                    yield "data: [DONE]\n\n"
+                    break
+                
+                try:
+                    # Parse and inject provider/model info
+                    # We do a lightweight injection to maintain speed
+                    if provider:
+                        chunk_data = json.loads(data_str)
+                        chunk_data["provider"] = provider
+                        if "model" not in chunk_data or chunk_data["model"] == "unknown":
+                            chunk_data["model"] = model
+                        
+                        yield f"data: {json.dumps(chunk_data)}\n\n"
+                    else:
+                        yield f"{line}\n\n"
+                        
+                except Exception as parse_error:
+                    # Fallback to direct relay if JSON is malformed
+                    logger.debug(f"Stream JSON parse error: {parse_error}")
+                    yield f"{line}\n\n"
+        logger.error(f"Error in stream relay: {e}")
+        error_chunk = {
+            "object": "chat.completion.chunk",
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
+            "error": {"message": str(e), "type": "stream_error"}
+        }
+        yield f"data: {json.dumps(error_chunk)}\n\n"
+        yield "data: [DONE]\n\n"
+    except asyncio.CancelledError:
+        logger.info("Stream relay cancelled")
+        raise
+    except Exception as e:
+        logger.error(f"Error in stream relay: {e}")
+        # Send error chunk
+        error_chunk = {
+            "object": "chat.completion.chunk",
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
+        }
+        yield f"data: {json.dumps(error_chunk)}\n\n"
+        yield "data: [DONE]\n\n"
+def create_streaming_response(
+    generator: AsyncGenerator[str, None], media_type: str = "text/event-stream"
+) -> StreamingResponse:
+    """
+Error [68:12] Except clause is unreachable because exception is already handled
+  "CancelledError" is a subclass of "CancelledError"
+Error [71:12] Except clause is unreachable because exception is already handled
+  "Exception" is a subclass of "Exception"
+▣  Build · kimi-k2.5:cloud · interrupted
+continue
+AI_TypeValidationError: Type validation failed: Value: {"error":"No providers available"}.
+Error message: [{"code":"invalid_union","errors":[[{"expected":"array","code":"invalid_type","path":["choices"],"message":"Invalid input: expected array, received undefined"}],[{"expected":"object","code":"invalid_type","path":["error"],"message":"Invalid input: expected object, received string"}]],"path":[],"message":"Invalid input"}]

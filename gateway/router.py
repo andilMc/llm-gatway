@@ -264,6 +264,8 @@ class ProviderRouter:
 
         # All providers failed for streaming
         error_data = {
+            "object": "chat.completion.chunk",
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
             "error": {
                 "message": "All providers failed",
                 "type": "provider_error",
@@ -291,7 +293,17 @@ class ProviderRouter:
         route = self.get_provider_for_model(model_alias)
 
         if not route:
-            yield f'data: {{"error": "No providers available"}}\n\n'
+            error_chunk = {
+                "object": "chat.completion.chunk",
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
+                "error": {
+                    "message": "No providers available",
+                    "type": "server_error",
+                    "param": None,
+                    "code": "no_providers_available"
+                }
+            }
+            yield f"data: {json.dumps(error_chunk)}\n\n"
             yield "data: [DONE]\n\n"
             return
 

@@ -88,29 +88,41 @@ class OllamaProvider(BaseProvider):
             request["frequency_penalty"] = kwargs["frequency_penalty"]
         if "seed" in kwargs:
             request["seed"] = kwargs["seed"]
+        if "tools" in kwargs and kwargs["tools"]:
+            request["tools"] = kwargs["tools"]
+        if "tool_choice" in kwargs and kwargs["tool_choice"]:
+            request["tool_choice"] = kwargs["tool_choice"]
 
         return request
 
     async def chat_completion(
-        self, messages: List[Dict[str, Any]], model: str, stream: bool = False, alias: Optional[str] = None, **kwargs
+        self,
+        messages: List[Dict[str, Any]],
+        model: str,
+        stream: bool = False,
+        alias: Optional[str] = None,
+        **kwargs,
     ) -> ProviderResponse:
         """Send chat completion request to Ollama with automatic key rotation on failure."""
         import httpx
 
         self.total_requests += 1
         model = model.strip()
-        
+
         # We try until we run out of valid keys or reach max_retries
         tried_keys = set()
         last_response = None
-        
-        for attempt in range(self.max_retries * 2): # Allow more attempts if we have many keys
+        key_errors = []
+
+        for attempt in range(
+            self.max_retries * 2
+        ):  # Allow more attempts if we have many keys
             key_obj = await self.key_manager.get_next_key(model, alias=alias)
-            
+
             # If no more keys or we've tried all of them and they are failing
             if not key_obj or key_obj.key in tried_keys:
                 break
-                
+
             tried_keys.add(key_obj.key)
             request_body = self._map_request(messages, model, stream, **kwargs)
 
@@ -121,7 +133,7 @@ class OllamaProvider(BaseProvider):
                     headers=self._get_headers(key_obj.key),
                     json=request_body,
                 )
-                
+
                 last_response = response
 
                 if response.status_code == 200:
@@ -141,26 +153,39 @@ class OllamaProvider(BaseProvider):
                 )
 
                 if response.status_code == 429:
+                    key_errors.append(f"key{len(tried_keys)}: rate limited")
                     retry_after = QuotaManager.extract_retry_after(response)
                     await self.key_manager.mark_rate_limited(key_obj, retry_after)
-                    logger.warning(f"{self.name}: Key rate limited, retrying with next key...")
-                    continue # Try next key
+                    logger.warning(
+                        f"{self.name}: Key rate limited, retrying with next key..."
+                    )
+                    continue  # Try next key
 
                 if response.status_code in [402, 403]:
+                    key_errors.append(f"key{len(tried_keys)}: quota exhausted")
                     await self.key_manager.mark_quota_exhausted(key_obj)
-                    logger.warning(f"{self.name}: Key quota exhausted, retrying with next key...")
-                    continue # Try next key
+                    logger.warning(
+                        f"{self.name}: Key quota exhausted, retrying with next key..."
+                    )
+                    continue  # Try next key
 
                 # Other API errors (5xx etc)
+                key_errors.append(f"key{len(tried_keys)}: error {response.status_code}")
                 await self.key_manager.mark_error(key_obj)
-                logger.warning(f"{self.name}: API error {response.status_code}, retrying with next key...")
+                logger.warning(
+                    f"{self.name}: API error {response.status_code}, retrying with next key..."
+                )
                 continue
 
             except (httpx.TimeoutException, httpx.NetworkError) as e:
+                key_errors.append(f"key{len(tried_keys)}: network error")
                 await self.key_manager.mark_error(key_obj)
-                logger.warning(f"{self.name}: Network/Timeout error, retrying with next key...")
+                logger.warning(
+                    f"{self.name}: Network/Timeout error, retrying with next key..."
+                )
                 continue
             except Exception as e:
+                key_errors.append(f"key{len(tried_keys)}: error {str(e)}")
                 await self.key_manager.mark_error(key_obj)
                 logger.error(f"{self.name}: Unexpected request error: {e}")
                 continue
@@ -168,9 +193,11 @@ class OllamaProvider(BaseProvider):
         # If we reach here, we exhausted available keys
         self.failed_requests += 1
         error_msg = "All API keys exhausted"
-        if last_response is not None:
-             error_msg = f"All API keys exhausted. Last error {last_response.status_code}: {last_response.text}"
-             
+        if key_errors:
+            error_msg = f"All API keys exhausted. Details: {', '.join(key_errors)}"
+        elif last_response is not None:
+            error_msg = f"All API keys exhausted. Last error {last_response.status_code}: {last_response.text}"
+
         return ProviderResponse(
             success=False,
             error=Exception(error_msg),
@@ -178,7 +205,11 @@ class OllamaProvider(BaseProvider):
         )
 
     async def chat_completion_stream(
-        self, messages: List[Dict[str, Any]], model: str, alias: Optional[str] = None, **kwargs
+        self,
+        messages: List[Dict[str, Any]],
+        model: str,
+        alias: Optional[str] = None,
+        **kwargs,
     ) -> AsyncGenerator[str, None]:
         """Stream chat completion from Ollama with automatic key rotation on failure."""
         import httpx
@@ -190,13 +221,14 @@ class OllamaProvider(BaseProvider):
         try:
             tried_keys = set()
             last_error = "All API keys exhausted"
+            key_errors = []
 
             for attempt in range(self.max_retries * 2):
                 key_obj = await self.key_manager.get_next_key(model, alias=alias)
-                
+
                 if not key_obj or key_obj.key in tried_keys:
                     break
-                    
+
                 tried_keys.add(key_obj.key)
                 request_body = self._map_request(messages, model, stream=True, **kwargs)
 
@@ -225,29 +257,44 @@ class OllamaProvider(BaseProvider):
                         last_error = f"API error {response.status_code}: {error_data}"
 
                         if response.status_code == 429:
+                            key_errors.append(f"key{len(tried_keys)}: rate limited")
                             retry_after = QuotaManager.extract_retry_after(response)
-                            await self.key_manager.mark_rate_limited(key_obj, retry_after)
+                            await self.key_manager.mark_rate_limited(
+                                key_obj, retry_after
+                            )
                             continue
-                            
+
                         if response.status_code in [402, 403]:
+                            key_errors.append(f"key{len(tried_keys)}: quota exhausted")
                             await self.key_manager.mark_quota_exhausted(key_obj)
                             continue
-                            
+
+                        key_errors.append(f"key{len(tried_keys)}: error {response.status_code}")
                         await self.key_manager.mark_error(key_obj)
                         continue
 
                 except (httpx.TimeoutException, httpx.NetworkError) as e:
+                    key_errors.append(f"key{len(tried_keys)}: network error")
+                    await self.key_manager.mark_error(key_obj)
+                    last_error = str(e)
+                    continue
+                except Exception as e:
+                    key_errors.append(f"key{len(tried_keys)}: error {str(e)}")
                     await self.key_manager.mark_error(key_obj)
                     last_error = str(e)
                     continue
 
             # If we reach here, we exhausted available keys
+            if key_errors:
+                last_error = f"Details: {', '.join(key_errors)}"
             error_data = {
+                "object": "chat.completion.chunk",
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
                 "error": {
                     "message": last_error,
                     "type": "insufficient_quota",
                     "param": None,
-                    "code": "keys_exhausted"
+                    "code": "keys_exhausted",
                 }
             }
             yield f"data: {json.dumps(error_data)}\n\n"
@@ -255,7 +302,12 @@ class OllamaProvider(BaseProvider):
 
         except Exception as e:
             logger.error(f"Ollama stream error: {e}")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            error_chunk = {
+                "object": "chat.completion.chunk",
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
+                "error": {"message": str(e)}
+            }
+            yield f"data: {json.dumps(error_chunk)}\n\n"
             yield "data: [DONE]\n\n"
         finally:
             self.active_requests -= 1

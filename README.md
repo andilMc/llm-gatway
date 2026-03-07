@@ -68,5 +68,32 @@ Set your base URL to `http://localhost:48001/v1` and use any string as the API k
 ## 📈 Monitoring
 Metrics are automatically collected. Access Grafana at `http://localhost:48002` to view real-time throughput and status codes.
 
+## ⚠️ Troubleshooting
+
+### Docker "Permission Denied" Error (Zombie Container)
+When trying to update or stop the container, you might encounter an error like:
+`Error response from daemon: cannot remove container "llm-gateway": could not kill container: permission denied`
+
+**Why this happens:**
+A process inside the container (like the Python web server) has turned into a "zombie" process. The Docker daemon loses the ability to kill it, leaving the container in an unbreakable locked state. Since Docker relies on immutable images, you cannot simply update running code; you *must* destroy the old container and start a new one, which this bug prevents.
+
+**How to fix it:**
+You have two options to break the lock and apply your updates:
+
+1. **Restart the Docker Daemon** (Recommended):
+   This flushes the zombie processes from the hypervisor/daemon level.
+   ```bash
+   sudo systemctl restart docker
+   sudo docker-compose -f docker/docker-compose.yml up -d --build
+   ```
+
+2. **Kill the Zombie Process Manually**:
+   If you cannot restart the daemon, find the stuck Python process on your host and kill it directly:
+   ```bash
+   ps -ef | grep gateway.server | grep -v grep | awk '{print $2}' | xargs -r kill -9
+   docker rm -f llm-gateway
+   docker-compose -f docker/docker-compose.yml up -d --build
+   ```
+
 ---
 *Developed for high-performance agentic workflows.*
