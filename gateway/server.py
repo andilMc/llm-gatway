@@ -145,6 +145,38 @@ async def list_models():
     return ModelListResponse(data=model_infos)
 
 
+@app.get("/v1/keys-status")
+async def get_keys_status():
+    """Get status of all API keys across providers."""
+    if not router:
+        raise HTTPException(status_code=503, detail="Gateway not initialized")
+
+    keys_info = []
+    from typing import Any
+
+    for name, provider in router.providers.items():
+        # Type hint pour mypy
+        provider_any: Any = provider
+        if hasattr(provider_any, "key_manager"):
+            key_manager = provider_any.key_manager
+            all_status = key_manager.get_all_status()
+            for status in all_status:
+                if status:
+                    keys_info.append(
+                        {
+                            "provider": name,
+                            "key_index": status["index"],
+                            "status": status["status"],
+                            "models": status["models"],
+                            "error_count": status["error_count"],
+                            "cooldown_remaining": status["cooldown_remaining"],
+                            "last_used": status["last_used"],
+                        }
+                    )
+
+    return {"keys": keys_info}
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
     """Chat completions endpoint."""
