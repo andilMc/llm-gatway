@@ -147,34 +147,47 @@ async def list_models():
 
 @app.get("/v1/keys-status")
 async def get_keys_status():
-    """Get status of all API keys across providers."""
+    """Get status of currently active API keys across providers."""
     if not router:
         raise HTTPException(status_code=503, detail="Gateway not initialized")
 
-    keys_info = []
+    active_keys_info = []
     from typing import Any
+    import time
 
     for name, provider in router.providers.items():
         # Type hint pour mypy
         provider_any: Any = provider
         if hasattr(provider_any, "key_manager"):
             key_manager = provider_any.key_manager
+            # Trouver la clé qui a été utilisée la plus récemment (active)
+            most_recent_key = None
+            most_recent_time = 0
+
             all_status = key_manager.get_all_status()
             for status in all_status:
-                if status:
-                    keys_info.append(
-                        {
-                            "provider": name,
-                            "key_index": status["index"],
-                            "status": status["status"],
-                            "models": status["models"],
-                            "error_count": status["error_count"],
-                            "cooldown_remaining": status["cooldown_remaining"],
-                            "last_used": status["last_used"],
-                        }
-                    )
+                if status and status.get("last_used"):
+                    if status["last_used"] > most_recent_time:
+                        most_recent_time = status["last_used"]
+                        most_recent_key = status
 
-    return {"keys": keys_info}
+            # Retourner uniquement la clé la plus récemment utilisée (active)
+            if most_recent_key:
+                time_since_last_use = time.time() - most_recent_key["last_used"]
+                active_keys_info.append(
+                    {
+                        "provider": name,
+                        "key_index": most_recent_key["index"] + 1,  # Index 1-based
+                        "status": most_recent_key["status"],
+                        "models": most_recent_key["models"],
+                        "error_count": most_recent_key["error_count"],
+                        "cooldown_remaining": most_recent_key["cooldown_remaining"],
+                        "last_used": most_recent_key["last_used"],
+                        "time_since_last_use_seconds": int(time_since_last_use),
+                    }
+                )
+
+    return {"active_key": active_keys_info[0] if active_keys_info else None}
 
 
 @app.post("/v1/chat/completions")
