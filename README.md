@@ -1,6 +1,6 @@
 # 🚀 LLM Gateway: Unified AI Routing
 
-A powerful, production-ready AI gateway designed to unify multiple LLM providers (NVIDIA NIM, Ollama Cloud) into a single, OpenAI-compatible API. Optimized for performance and high availability.
+A powerful, production-ready AI gateway designed to unify LLM providers (Ollama Cloud) into a single, OpenAI-compatible API. Optimized for performance and high availability.
 
 ## 🛠 Features
 

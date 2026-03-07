@@ -19,7 +19,7 @@ from .models import (
 )
 from .config_loader import ConfigLoader
 from .router import ProviderRouter
-from .providers import OllamaProvider, NvidiaProvider
+from .providers import OllamaProvider
 from .streaming import stream_relay, create_streaming_response
 
 # Configure logging
@@ -73,9 +73,6 @@ async def lifespan(app: FastAPI):
 
     if "ollama" in providers_config:
         providers["ollama"] = OllamaProvider("ollama", providers_config["ollama"])
-
-    if "nvidia" in providers_config:
-        providers["nvidia"] = NvidiaProvider("nvidia", providers_config["nvidia"])
 
     if not providers:
         logger.error("No providers configured")
@@ -199,7 +196,9 @@ async def chat_completions(request: Request):
     except HTTPException as e:
         return JSONResponse(
             status_code=e.status_code,
-            content={"error": {"message": str(e.detail), "type": "invalid_request_error"}},
+            content={
+                "error": {"message": str(e.detail), "type": "invalid_request_error"}
+            },
         )
     except Exception as e:
         logger.error(f"Error processing chat completion: {e}")

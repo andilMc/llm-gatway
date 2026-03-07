@@ -29,48 +29,33 @@ providers:
       author-pro: "glm-5:cloud"
       omni-think: "deepseek-v3.2:cloud"
 
-  nvidia:
-    base_url: "https://integrate.api.nvidia.com/v1"
-    strategy: "fallback"
-    timeout: 120
-    max_retries: 3
-    keys:
-      - key: "YOUR_NVIDIA_API_KEY_HERE"
-        models: ["logic-supreme", "code-architect", "author-pro", "omni-think"]
-    # Model mappings
-    models:
-      logic-supreme: "moonshotai/kimi-k2.5"
-      code-architect: "qwen/qwen3-coder-480b-a35b-instruct"
-      author-pro: "deepseek-ai/deepseek-v3.2" # Using DS V3.2 as elite writing fallback
-      omni-think: "deepseek-ai/deepseek-v3.2"
-
 # Model aliases - maps generic names to providers
 models:
   # 'logic-supreme' focuses on deep reasoning
   "logic-supreme":
-    providers: ["ollama", "nvidia"]
+    providers: ["ollama"]
   
   # 'code-architect' for expert coding
   "code-architect":
-    providers: ["ollama", "nvidia"]
+    providers: ["ollama"]
   
   # 'author-pro' for high-quality writing
   "author-pro":
-    providers: ["ollama", "nvidia"]
+    providers: ["ollama"]
 
   # 'omni-think' for general purpose performance
   "omni-think":
-    providers: ["ollama", "nvidia"]
+    providers: ["ollama"]
   
   # OpenAI-compatible model names for backward compatibility or direct access
   "gpt-4":
-    providers: ["ollama", "nvidia"]
+    providers: ["ollama"]
   
   "gpt-3.5-turbo":
     providers: ["ollama"]
 
   "deepseek-v3.2":
-    providers: ["ollama", "nvidia"]
+    providers: ["ollama"]
 
 # Gateway settings
 gateway:
