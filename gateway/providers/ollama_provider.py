@@ -138,9 +138,28 @@ class OllamaProvider(BaseProvider):
 
                 if response.status_code == 200:
                     await self.key_manager.mark_success(key_obj)
+                    response_data = response.json()
+
+                    # Ajouter l'info de la clé API utilisée au dernier message
+                    if "choices" in response_data and len(response_data["choices"]) > 0:
+                        choice = response_data["choices"][0]
+                        if "message" in choice and "content" in choice["message"]:
+                            content = choice["message"]["content"]
+                            choice["message"]["content"] = (
+                                content + f"\n\n(Cle utilisée numero:{key_obj.index})"
+                            )
+                    elif (
+                        "message" in response_data
+                        and "content" in response_data["message"]
+                    ):
+                        content = response_data["message"]["content"]
+                        response_data["message"]["content"] = (
+                            content + f"\n\n(Cle utilisée numero:{key_obj.index})"
+                        )
+
                     return ProviderResponse(
                         success=True,
-                        data=response.json(),
+                        data=response_data,
                         status_code=200,
                         headers=dict(response.headers),
                     )
@@ -232,6 +251,7 @@ class OllamaProvider(BaseProvider):
                 tried_keys.add(key_obj.key)
                 request_body = self._map_request(messages, model, stream=True, **kwargs)
 
+                success_chunks = []
                 try:
                     client = await self._get_client()
                     async with client.stream(
@@ -242,9 +262,34 @@ class OllamaProvider(BaseProvider):
                     ) as response:
                         if response.status_code == 200:
                             await self.key_manager.mark_success(key_obj)
+                            final_chunk_found = False
                             async for line in response.aiter_lines():
                                 if line:
+                                    success_chunks.append(line)
+                                    # Vérifier si c'est le dernier chunk [DONE]
+                                    if line.strip() == "data: [DONE]":
+                                        final_chunk_found = True
+                                        break
                                     yield f"{line}\n"
+
+                            # Ajouter un chunk final avec l'information de la clé
+                            if success_chunks:
+                                key_info_chunk = {
+                                    "object": "chat.completion.chunk",
+                                    "choices": [
+                                        {
+                                            "index": 0,
+                                            "delta": {
+                                                "content": f"\n(Cle utilisée numero:{key_obj.index})"
+                                            },
+                                            "finish_reason": None,
+                                        }
+                                    ],
+                                }
+                                yield f"data: {json.dumps(key_info_chunk)}\n\n"
+
+                            if not final_chunk_found:
+                                yield "data: [DONE]\n\n"
                             return
 
                         # Handle errors and rotate key
@@ -269,7 +314,9 @@ class OllamaProvider(BaseProvider):
                             await self.key_manager.mark_quota_exhausted(key_obj)
                             continue
 
-                        key_errors.append(f"key{len(tried_keys)}: error {response.status_code}")
+                        key_errors.append(
+                            f"key{len(tried_keys)}: error {response.status_code}"
+                        )
                         await self.key_manager.mark_error(key_obj)
                         continue
 
@@ -295,7 +342,7 @@ class OllamaProvider(BaseProvider):
                     "type": "insufficient_quota",
                     "param": None,
                     "code": "keys_exhausted",
-                }
+                },
             }
             yield f"data: {json.dumps(error_data)}\n\n"
             yield "data: [DONE]\n\n"
@@ -305,7 +352,7 @@ class OllamaProvider(BaseProvider):
             error_chunk = {
                 "object": "chat.completion.chunk",
                 "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
-                "error": {"message": str(e)}
+                "error": {"message": str(e)},
             }
             yield f"data: {json.dumps(error_chunk)}\n\n"
             yield "data: [DONE]\n\n"

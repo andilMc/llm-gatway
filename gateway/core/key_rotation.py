@@ -23,6 +23,7 @@ class ProviderKey:
     """Represents a provider API key with its metadata."""
 
     key: str
+    index: int = 0  # La position de la clé (1, 2, 3...)
     models: List[str] = field(default_factory=list)
     status: KeyStatus = KeyStatus.AVAILABLE
     last_used: Optional[float] = None
@@ -72,31 +73,34 @@ class KeyManager:
         self._total_keys = len(keys)
 
         # Initialize keys
-        for key_data in keys:
+        for index, key_data in enumerate(keys):
             if isinstance(key_data, dict):
                 self._keys.append(
                     ProviderKey(
                         key=key_data.get("key", ""),
+                        index=index + 1,
                         models=[m.strip() for m in key_data.get("models", [])],
                         metadata=key_data.get("metadata", {}),
                     )
                 )
             else:
-                self._keys.append(ProviderKey(key=key_data))
+                self._keys.append(ProviderKey(key=key_data, index=index + 1))
 
         logger.info(f"Initialized {self.provider_name} with {len(self._keys)} keys")
 
     def _is_key_available(self, key: ProviderKey) -> bool:
         """Check if a key is available for use."""
         now = time.time()
-        
+
         # Check if cooldown has expired
         if key.cooldown_until and now >= key.cooldown_until:
-            logger.info(f"{self.provider_name}: Key cooldown expired, resetting status from {key.status.value}")
+            logger.info(
+                f"{self.provider_name}: Key cooldown expired, resetting status from {key.status.value}"
+            )
             key.cooldown_until = None
             key.status = KeyStatus.AVAILABLE
             key.error_count = 0
-            key.session_start_time = None # Reset session on recovery
+            key.session_start_time = None  # Reset session on recovery
             return True
 
         if key.status == KeyStatus.DISABLED:
@@ -106,10 +110,17 @@ class KeyManager:
             return False
 
         # Check for 2-hour session limit
-        if key.session_start_time and (now - key.session_start_time) > self.SESSION_LIMIT_SECONDS:
-            logger.warning(f"{self.provider_name}: Key usage exceeded 2h limit, rotating...")
+        if (
+            key.session_start_time
+            and (now - key.session_start_time) > self.SESSION_LIMIT_SECONDS
+        ):
+            logger.warning(
+                f"{self.provider_name}: Key usage exceeded 2h limit, rotating..."
+            )
             key.status = KeyStatus.SESSION_EXPIRED
-            key.cooldown_until = now + self.DEFAULT_COOLDOWN_SECONDS # 5 min cooldown before reuse
+            key.cooldown_until = (
+                now + self.DEFAULT_COOLDOWN_SECONDS
+            )  # 5 min cooldown before reuse
             return False
 
         return True
@@ -118,7 +129,9 @@ class KeyManager:
         """Get list of currently available keys."""
         return [k for k in self._keys if self._is_key_available(k)]
 
-    async def get_next_key(self, model: Optional[str] = None, alias: Optional[str] = None) -> Optional[ProviderKey]:
+    async def get_next_key(
+        self, model: Optional[str] = None, alias: Optional[str] = None
+    ) -> Optional[ProviderKey]:
         """
         Get the next available key based on rotation strategy.
 
@@ -138,19 +151,26 @@ class KeyManager:
 
             # Filter by model or alias if specified
             if model or alias:
-                logger.debug(f"Provider {self.provider_name} filtering keys for model: '{model}', alias: '{alias}'")
+                logger.debug(
+                    f"Provider {self.provider_name} filtering keys for model: '{model}', alias: '{alias}'"
+                )
                 available_with_model = [
-                    k for k in available 
-                    if not k.models or 
-                    (model and model in k.models) or 
-                    (alias and alias in k.models)
+                    k
+                    for k in available
+                    if not k.models
+                    or (model and model in k.models)
+                    or (alias and alias in k.models)
                 ]
                 if not available_with_model:
-                     logger.warning(f"{self.provider_name}: No keys match model='{model}' or alias='{alias}'. Checked keys: {[k.models for k in available]}")
+                    logger.warning(
+                        f"{self.provider_name}: No keys match model='{model}' or alias='{alias}'. Checked keys: {[k.models for k in available]}"
+                    )
                 available = available_with_model
 
             if not available:
-                logger.warning(f"No available keys for provider {self.provider_name} and model {model}")
+                logger.warning(
+                    f"No available keys for provider {self.provider_name} and model {model}"
+                )
                 return None
 
             if self.strategy == KeyRotationStrategy.SEQUENTIAL:
