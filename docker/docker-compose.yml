@@ -3,12 +3,17 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      args:
+        USER_ID: ${UID:-1000}
+        GROUP_ID: ${GID:-1000}
     container_name: llm-gateway
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "48001:8000"
     environment:
       - GATEWAY_CONFIG=/app/config/providers.yml
       - GATEWAY_LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
     volumes:
       - ../config:/app/config:ro
     restart: unless-stopped

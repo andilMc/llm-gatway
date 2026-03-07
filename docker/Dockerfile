@@ -15,8 +15,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY gateway/ ./gateway/
 COPY config/ ./config/
 
-# Create non-root user
-RUN useradd -m -u 1000 gateway && chown -R gateway:gateway /app
+# Create non-root user with flexible UID/GID support
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+RUN groupadd -g ${GROUP_ID} gateway && \
+    useradd -l -u ${USER_ID} -g gateway gateway && \
+    chown -R gateway:gateway /app
+
+# Switch to non-root user
 USER gateway
 
 # Expose port
