@@ -109,18 +109,32 @@ class OllamaProvider(BaseProvider):
         self.total_requests += 1
         model = model.strip()
 
-        # We try until we run out of valid keys or reach max_retries
-        tried_keys = set()
-        last_response = None
-        key_errors = []
+        # Get total number of keys to try each one exactly once
+        stats = self.key_manager.get_stats()
+        total_keys = stats["total_keys"]
 
-        for attempt in range(
-            self.max_retries * 2
-        ):  # Allow more attempts if we have many keys
+        if total_keys == 0:
+            self.failed_requests += 1
+            return ProviderResponse(
+                success=False,
+                error=Exception("Aucune clé API configurée"),
+                status_code=503,
+            )
+
+        # Track failures per key: {key_index: error_reason}
+        key_failures = []
+        tried_keys = set()
+
+        # Try each key exactly once (one complete round)
+        for attempt in range(total_keys):
             key_obj = await self.key_manager.get_next_key(model, alias=alias)
 
-            # If no more keys or we've tried all of them and they are failing
-            if not key_obj or key_obj.key in tried_keys:
+            # If no key available or we've tried all available keys
+            if not key_obj:
+                break
+
+            # Avoid trying the same key twice in this round
+            if key_obj.key in tried_keys:
                 break
 
             tried_keys.add(key_obj.key)
@@ -133,8 +147,6 @@ class OllamaProvider(BaseProvider):
                     headers=self._get_headers(key_obj.key),
                     json=request_body,
                 )
-
-                last_response = response
 
                 if response.status_code == 200:
                     await self.key_manager.mark_success(key_obj)
@@ -164,58 +176,71 @@ class OllamaProvider(BaseProvider):
                         headers=dict(response.headers),
                     )
 
-                # Handle errors and rotate key
-                error_data = (
-                    response.json()
-                    if response.text
-                    else {"error": {"message": response.reason_phrase}}
-                )
+                # Handle errors - store detailed failure reason
+                error_msg_detail = response.reason_phrase
+                try:
+                    error_data = response.json()
+                    if "error" in error_data and "message" in error_data["error"]:
+                        error_msg_detail = error_data["error"]["message"]
+                except:
+                    pass
 
                 if response.status_code == 429:
-                    key_errors.append(f"key{len(tried_keys)}: rate limited")
+                    failure_reason = (
+                        f"Rate limit dépassé (HTTP 429) - {error_msg_detail}"
+                    )
                     retry_after = QuotaManager.extract_retry_after(response)
                     await self.key_manager.mark_rate_limited(key_obj, retry_after)
                     logger.warning(
-                        f"{self.name}: Key rate limited, retrying with next key..."
+                        f"{self.name}: Clé #{key_obj.index} rate limited, tentative avec clé suivante..."
                     )
-                    continue  # Try next key
-
-                if response.status_code in [402, 403]:
-                    key_errors.append(f"key{len(tried_keys)}: quota exhausted")
+                elif response.status_code in [402, 403]:
+                    failure_reason = f"Quota épuisé (HTTP {response.status_code}) - {error_msg_detail}"
                     await self.key_manager.mark_quota_exhausted(key_obj)
                     logger.warning(
-                        f"{self.name}: Key quota exhausted, retrying with next key..."
+                        f"{self.name}: Clé #{key_obj.index} quota épuisé, tentative avec clé suivante..."
                     )
-                    continue  # Try next key
+                else:
+                    failure_reason = (
+                        f"Erreur API (HTTP {response.status_code}) - {error_msg_detail}"
+                    )
+                    await self.key_manager.mark_error(key_obj)
+                    logger.warning(
+                        f"{self.name}: Clé #{key_obj.index} erreur {response.status_code}, tentative avec clé suivante..."
+                    )
 
-                # Other API errors (5xx etc)
-                key_errors.append(f"key{len(tried_keys)}: error {response.status_code}")
-                await self.key_manager.mark_error(key_obj)
-                logger.warning(
-                    f"{self.name}: API error {response.status_code}, retrying with next key..."
-                )
+                key_failures.append((key_obj.index, failure_reason))
                 continue
 
             except (httpx.TimeoutException, httpx.NetworkError) as e:
-                key_errors.append(f"key{len(tried_keys)}: network error")
+                failure_reason = f"Erreur réseau - {str(e)}"
                 await self.key_manager.mark_error(key_obj)
                 logger.warning(
-                    f"{self.name}: Network/Timeout error, retrying with next key..."
+                    f"{self.name}: Clé #{key_obj.index} erreur réseau, tentative avec clé suivante..."
                 )
+                key_failures.append((key_obj.index, failure_reason))
                 continue
             except Exception as e:
-                key_errors.append(f"key{len(tried_keys)}: error {str(e)}")
+                failure_reason = f"Erreur inattendue - {str(e)}"
                 await self.key_manager.mark_error(key_obj)
-                logger.error(f"{self.name}: Unexpected request error: {e}")
+                logger.error(
+                    f"{self.name}: Clé #{key_obj.index} erreur inattendue: {e}"
+                )
+                key_failures.append((key_obj.index, failure_reason))
                 continue
 
-        # If we reach here, we exhausted available keys
+        # If we reach here, all keys have failed - create detailed human-readable message
         self.failed_requests += 1
-        error_msg = "All API keys exhausted"
-        if key_errors:
-            error_msg = f"All API keys exhausted. Details: {', '.join(key_errors)}"
-        elif last_response is not None:
-            error_msg = f"All API keys exhausted. Last error {last_response.status_code}: {last_response.text}"
+
+        if key_failures:
+            error_lines = [
+                "❌ Échec de toutes les clés API après tentative complète :\n"
+            ]
+            for key_idx, reason in key_failures:
+                error_lines.append(f"  • Clé #{key_idx} : {reason}")
+            error_msg = "\n".join(error_lines)
+        else:
+            error_msg = "❌ Aucune clé API disponible pour effectuer la requête"
 
         return ProviderResponse(
             success=False,
@@ -238,20 +263,38 @@ class OllamaProvider(BaseProvider):
         model = model.strip()
 
         try:
-            tried_keys = set()
-            last_error = "All API keys exhausted"
-            key_errors = []
+            # Get total number of keys to try each one exactly once
+            stats = self.key_manager.get_stats()
+            total_keys = stats["total_keys"]
 
-            for attempt in range(self.max_retries * 2):
+            if total_keys == 0:
+                error_chunk = {
+                    "object": "chat.completion.chunk",
+                    "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
+                    "error": {"message": "❌ Aucune clé API configurée"},
+                }
+                yield f"data: {json.dumps(error_chunk)}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+
+            # Track failures per key: [(key_index, error_reason), ...]
+            key_failures = []
+            tried_keys = set()
+
+            # Try each key exactly once (one complete round)
+            for attempt in range(total_keys):
                 key_obj = await self.key_manager.get_next_key(model, alias=alias)
 
-                if not key_obj or key_obj.key in tried_keys:
+                if not key_obj:
+                    break
+
+                # Avoid trying the same key twice in this round
+                if key_obj.key in tried_keys:
                     break
 
                 tried_keys.add(key_obj.key)
                 request_body = self._map_request(messages, model, stream=True, **kwargs)
 
-                success_chunks = []
                 try:
                     client = await self._get_client()
                     async with client.stream(
@@ -265,7 +308,6 @@ class OllamaProvider(BaseProvider):
                             final_chunk_found = False
                             async for line in response.aiter_lines():
                                 if line:
-                                    success_chunks.append(line)
                                     # Vérifier si c'est le dernier chunk [DONE]
                                     if line.strip() == "data: [DONE]":
                                         final_chunk_found = True
@@ -273,72 +315,97 @@ class OllamaProvider(BaseProvider):
                                     yield f"{line}\n"
 
                             # Ajouter un chunk final avec l'information de la clé
-                            if success_chunks:
-                                key_info_chunk = {
-                                    "object": "chat.completion.chunk",
-                                    "choices": [
-                                        {
-                                            "index": 0,
-                                            "delta": {
-                                                "content": f"\n(Cle utilisée numero:{key_obj.index})"
-                                            },
-                                            "finish_reason": None,
-                                        }
-                                    ],
-                                }
-                                yield f"data: {json.dumps(key_info_chunk)}\n\n"
+                            key_info_chunk = {
+                                "object": "chat.completion.chunk",
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "delta": {
+                                            "content": f"\n(Cle utilisée numero:{key_obj.index})"
+                                        },
+                                        "finish_reason": None,
+                                    }
+                                ],
+                            }
+                            yield f"data: {json.dumps(key_info_chunk)}\n\n"
 
                             if not final_chunk_found:
                                 yield "data: [DONE]\n\n"
                             return
 
-                        # Handle errors and rotate key
+                        # Handle errors - store detailed failure reason
                         body = await response.aread()
-                        error_data = (
-                            json.loads(body)
-                            if body
-                            else {"error": {"message": response.reason_phrase}}
-                        )
-                        last_error = f"API error {response.status_code}: {error_data}"
+                        error_msg_detail = response.reason_phrase
+                        try:
+                            error_data = json.loads(body) if body else {}
+                            if (
+                                "error" in error_data
+                                and "message" in error_data["error"]
+                            ):
+                                error_msg_detail = error_data["error"]["message"]
+                        except:
+                            pass
 
                         if response.status_code == 429:
-                            key_errors.append(f"key{len(tried_keys)}: rate limited")
+                            failure_reason = (
+                                f"Rate limit dépassé (HTTP 429) - {error_msg_detail}"
+                            )
                             retry_after = QuotaManager.extract_retry_after(response)
                             await self.key_manager.mark_rate_limited(
                                 key_obj, retry_after
                             )
-                            continue
-
-                        if response.status_code in [402, 403]:
-                            key_errors.append(f"key{len(tried_keys)}: quota exhausted")
+                            logger.warning(
+                                f"{self.name}: Clé #{key_obj.index} rate limited, tentative avec clé suivante..."
+                            )
+                        elif response.status_code in [402, 403]:
+                            failure_reason = f"Quota épuisé (HTTP {response.status_code}) - {error_msg_detail}"
                             await self.key_manager.mark_quota_exhausted(key_obj)
-                            continue
+                            logger.warning(
+                                f"{self.name}: Clé #{key_obj.index} quota épuisé, tentative avec clé suivante..."
+                            )
+                        else:
+                            failure_reason = f"Erreur API (HTTP {response.status_code}) - {error_msg_detail}"
+                            await self.key_manager.mark_error(key_obj)
+                            logger.warning(
+                                f"{self.name}: Clé #{key_obj.index} erreur {response.status_code}, tentative avec clé suivante..."
+                            )
 
-                        key_errors.append(
-                            f"key{len(tried_keys)}: error {response.status_code}"
-                        )
-                        await self.key_manager.mark_error(key_obj)
+                        key_failures.append((key_obj.index, failure_reason))
                         continue
 
                 except (httpx.TimeoutException, httpx.NetworkError) as e:
-                    key_errors.append(f"key{len(tried_keys)}: network error")
+                    failure_reason = f"Erreur réseau - {str(e)}"
                     await self.key_manager.mark_error(key_obj)
-                    last_error = str(e)
+                    logger.warning(
+                        f"{self.name}: Clé #{key_obj.index} erreur réseau, tentative avec clé suivante..."
+                    )
+                    key_failures.append((key_obj.index, failure_reason))
                     continue
                 except Exception as e:
-                    key_errors.append(f"key{len(tried_keys)}: error {str(e)}")
+                    failure_reason = f"Erreur inattendue - {str(e)}"
                     await self.key_manager.mark_error(key_obj)
-                    last_error = str(e)
+                    logger.error(
+                        f"{self.name}: Clé #{key_obj.index} erreur inattendue: {e}"
+                    )
+                    key_failures.append((key_obj.index, failure_reason))
                     continue
 
-            # If we reach here, we exhausted available keys
-            if key_errors:
-                last_error = f"Details: {', '.join(key_errors)}"
+            # If we reach here, all keys have failed - create detailed human-readable message
+            if key_failures:
+                error_lines = [
+                    "❌ Échec de toutes les clés API après tentative complète :"
+                ]
+                for key_idx, reason in key_failures:
+                    error_lines.append(f"• Clé #{key_idx} : {reason}")
+                error_msg = "\n".join(error_lines)
+            else:
+                error_msg = "❌ Aucune clé API disponible pour effectuer la requête"
+
             error_data = {
                 "object": "chat.completion.chunk",
                 "choices": [{"index": 0, "delta": {}, "finish_reason": "error"}],
                 "error": {
-                    "message": last_error,
+                    "message": error_msg,
                     "type": "insufficient_quota",
                     "param": None,
                     "code": "keys_exhausted",
