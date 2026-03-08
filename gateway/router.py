@@ -11,6 +11,7 @@ from enum import Enum
 from .providers.base_provider import BaseProvider, ProviderHealth
 from .core.circuit_breaker import CircuitBreakerRegistry
 from .models import HealthStatus
+from .database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,9 @@ class ProviderRouter:
 
         if model_config:
             provider_names = model_config.get("providers", [])
-            logger.debug(f"Resolved {model_alias} from config. Providers: {provider_names}")
+            logger.debug(
+                f"Resolved {model_alias} from config. Providers: {provider_names}"
+            )
         else:
             # If no alias, try to find provider that supports this model directly
             provider_names = [
@@ -85,7 +88,9 @@ class ProviderRouter:
             if not provider_names:
                 # Default to first provider if no match
                 provider_names = list(self.providers.keys())[:1]
-                logger.debug(f"Direct model match failed for {model_alias}. Defaulting to: {provider_names}")
+                logger.debug(
+                    f"Direct model match failed for {model_alias}. Defaulting to: {provider_names}"
+                )
 
         # Filter to healthy providers
         available_providers = []
@@ -97,7 +102,9 @@ class ProviderRouter:
                 if provider.is_healthy and circuit_breaker.is_closed:
                     available_providers.append(provider)
                 else:
-                    logger.debug(f"Provider {name} unhealthy or circuit open. Healthy: {provider.is_healthy}, CB: {circuit_breaker.state}")
+                    logger.debug(
+                        f"Provider {name} unhealthy or circuit open. Healthy: {provider.is_healthy}, CB: {circuit_breaker.state}"
+                    )
 
         if not available_providers:
             logger.warning(f"No healthy providers available for model {model_alias}")
@@ -176,16 +183,56 @@ class ProviderRouter:
                 if stream:
                     # For streaming, return the generator
                     return await self._execute_stream_with_fallback(
-                        provider, providers_to_try, messages, actual_model, alias=model_alias, **kwargs
+                        provider,
+                        providers_to_try,
+                        messages,
+                        actual_model,
+                        alias=model_alias,
+                        **kwargs,
                     )
                 else:
                     # For non-streaming, try the request
                     response = await provider.chat_completion(
-                        messages=messages, model=actual_model, stream=False, alias=model_alias, **kwargs
+                        messages=messages,
+                        model=actual_model,
+                        stream=False,
+                        alias=model_alias,
+                        **kwargs,
                     )
 
                     if response.success:
                         await circuit_breaker.record_success()
+                        # Log request to database
+                        try:
+                            db = get_db()
+                            response_data = response.data
+
+                            # Extract tokens if available
+                            tokens_input = (
+                                response_data.get("usage", {}).get("prompt_tokens", 0)
+                                if isinstance(response_data, dict)
+                                else 0
+                            )
+                            tokens_output = (
+                                response_data.get("usage", {}).get(
+                                    "completion_tokens", 0
+                                )
+                                if isinstance(response_data, dict)
+                                else 0
+                            )
+
+                            db.log_request(
+                                provider_id=None,
+                                key_id=None,
+                                model_used=actual_model,
+                                status_code=200,
+                                tokens_input=tokens_input,
+                                tokens_output=tokens_output,
+                                latency_ms=None,
+                            )
+                        except Exception as db_err:
+                            logger.warning(f"Failed to log request to DB: {db_err}")
+
                         # Inject provider info
                         data = response.data
                         if isinstance(data, dict):
@@ -195,21 +242,77 @@ class ProviderRouter:
                     # Handle specific errors
                     if response.is_rate_limit:
                         logger.warning(f"Rate limited on {provider.name}")
+                        # Log failed request
+                        try:
+                            db = get_db()
+                            db.log_request(
+                                provider_id=provider.id
+                                if hasattr(provider, "id")
+                                else None,
+                                key_id=None,
+                                model_used=actual_model,
+                                status_code=429,
+                                error_message=str(response.error),
+                            )
+                        except:
+                            pass
                         last_error = response.error
                         continue
 
                     if response.is_quota_exhausted:
                         logger.warning(f"Quota exhausted on {provider.name}")
+                        # Log failed request
+                        try:
+                            db = get_db()
+                            db.log_request(
+                                provider_id=provider.id
+                                if hasattr(provider, "id")
+                                else None,
+                                key_id=None,
+                                model_used=actual_model,
+                                status_code=402,
+                                error_message=str(response.error),
+                            )
+                        except:
+                            pass
                         last_error = response.error
                         continue
 
                     # General failure
                     await circuit_breaker.record_failure()
+                    # Log failed request
+                    try:
+                        db = get_db()
+                        db.log_request(
+                            provider_id=provider.id
+                            if hasattr(provider, "id")
+                            else None,
+                            key_id=None,
+                            model_used=actual_model,
+                            status_code=500,
+                            error_message=str(response.error),
+                        )
+                    except:
+                        pass
                     last_error = response.error
 
             except Exception as e:
                 logger.error(f"Error with provider {provider.name}: {e}")
                 await circuit_breaker.record_failure()
+                # Log failed request
+                try:
+                    db = get_db()
+                    db.log_request(
+                        provider_id=provider.id if hasattr(provider, "id") else None,
+                        key_id=None,
+                        model_used=actual_model
+                        if "actual_model" in dir()
+                        else model_alias,
+                        status_code=500,
+                        error_message=str(e),
+                    )
+                except:
+                    pass
                 last_error = e
 
         # All providers failed
@@ -249,7 +352,9 @@ class ProviderRouter:
                 # Track if we received any data
                 received_data = False
 
-                async for chunk in stream_relay(stream_gen, actual_model, provider.name):
+                async for chunk in stream_relay(
+                    stream_gen, actual_model, provider.name
+                ):
                     received_data = True
                     yield chunk
 
@@ -270,8 +375,8 @@ class ProviderRouter:
                 "message": "All providers failed",
                 "type": "provider_error",
                 "param": None,
-                "code": "all_providers_failed"
-            }
+                "code": "all_providers_failed",
+            },
         }
         yield f"data: {json.dumps(error_data)}\n\n"
         yield "data: [DONE]\n\n"
@@ -300,15 +405,20 @@ class ProviderRouter:
                     "message": "No providers available",
                     "type": "server_error",
                     "param": None,
-                    "code": "no_providers_available"
-                }
+                    "code": "no_providers_available",
+                },
             }
             yield f"data: {json.dumps(error_chunk)}\n\n"
             yield "data: [DONE]\n\n"
             return
 
         async for chunk in self._execute_stream_with_fallback(
-            route.provider, route.fallback_providers, messages, model_alias, alias=model_alias, **kwargs
+            route.provider,
+            route.fallback_providers,
+            messages,
+            model_alias,
+            alias=model_alias,
+            **kwargs,
         ):
             yield chunk
 

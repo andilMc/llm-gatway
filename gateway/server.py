@@ -86,6 +86,30 @@ async def lifespan(app: FastAPI):
     models_config = config_loader.get_models_config()
     router = ProviderRouter(providers, models_config)
 
+    # Setup database logging handler
+    try:
+        from gateway.database import get_db
+
+        db = get_db()
+
+        class DBPythonHandler(logging.Handler):
+            def emit(self, record):
+                try:
+                    db.add_log(
+                        level=record.levelname,
+                        logger_name=record.name,
+                        message=self.format(record),
+                    )
+                except:
+                    pass
+
+        db_handler = DBPythonHandler()
+        db_handler.setFormatter(logging.Formatter("%(message)s"))
+        logging.getLogger().addHandler(db_handler)
+        logger.info("Database logging handler initialized")
+    except Exception as e:
+        logger.warning(f"Failed to setup database logging: {e}")
+
     # Run initial health check
     await router.run_health_checks()
 
