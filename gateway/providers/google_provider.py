@@ -72,8 +72,6 @@ class GoogleProvider(BaseProvider):
             "max_tokens",
             "top_p",
             "stop",
-            "presence_penalty",
-            "frequency_penalty",
             "seed",
         ]:
             if param in kwargs and kwargs[param] is not None:
@@ -129,7 +127,7 @@ class GoogleProvider(BaseProvider):
                 )
 
                 if response.status_code == 200:
-                    await self.key_manager.report_success(key_obj.index)
+                    await self.key_manager.mark_success(key_obj)
                     return ProviderResponse(
                         success=True, data=response.json(), status_code=200
                     )
@@ -145,14 +143,14 @@ class GoogleProvider(BaseProvider):
                 )
 
                 if response.status_code == 429:
-                    await self.key_manager.report_rate_limit(key_obj.index)
+                    await self.key_manager.mark_rate_limited(key_obj)
                     continue
 
-                await self.key_manager.report_error(key_obj.index)
+                await self.key_manager.mark_error(key_obj)
 
             except Exception as e:
                 logger.error(f"Request to Google failed: {e}")
-                await self.key_manager.report_error(key_obj.index)
+                await self.key_manager.mark_error(key_obj)
 
         self.failed_requests += 1
         return ProviderResponse(
@@ -209,14 +207,14 @@ class GoogleProvider(BaseProvider):
                         if "[DONE]" in line:
                             break
 
-                await self.key_manager.report_success(key_obj.index)
+                await self.key_manager.mark_success(key_obj)
 
         except Exception as e:
             logger.error(f"Google streaming exception: {e}")
             error_data = {"error": {"message": str(e), "type": "server_error"}}
             yield f"data: {json.dumps(error_data)}\n\n"
             yield "data: [DONE]\n\n"
-            await self.key_manager.report_error(key_obj.index)
+            await self.key_manager.mark_error(key_obj)
 
     async def list_models(self) -> List[Dict[str, Any]]:
         """List available models from Google."""
@@ -228,7 +226,7 @@ class GoogleProvider(BaseProvider):
         ]
 
     async def health_check(self) -> bool:
-        """Check Google provider health."""
+        """Check Google provider health using a minimal chat completion."""
         import httpx
         import time
 
@@ -239,9 +237,16 @@ class GoogleProvider(BaseProvider):
                 return False
 
             async with httpx.AsyncClient(timeout=10.0) as client:
-                # We use a simple model list or a dummy request
-                response = await client.get(
-                    f"{self.base_url}/models", headers=self._get_headers(key_obj.key)
+                # Use a minimal chat completion instead of /models which might not be supported
+                dummy_request = {
+                    "model": "gemini-3.1-flash-lite-preview",  # Use a model from the allowed list
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "max_tokens": 1
+                }
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=self._get_headers(key_obj.key),
+                    json=dummy_request
                 )
 
                 if response.status_code == 200:
@@ -249,9 +254,10 @@ class GoogleProvider(BaseProvider):
                     self.last_health_check = time.time()
                     return True
                 else:
+                    logger.warning(f"Google health check failed with status {response.status_code}: {response.text}")
                     self.health_status = ProviderHealth.UNHEALTHY
                     return False
         except Exception as e:
-            logger.warning(f"Google health check failed: {e}")
+            logger.warning(f"Google health check exception: {e}")
             self.health_status = ProviderHealth.UNHEALTHY
             return False

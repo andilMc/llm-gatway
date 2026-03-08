@@ -8,14 +8,15 @@ services:
         GROUP_ID: ${GID:-1000}
     container_name: llm-gateway
     user: "${UID:-1000}:${GID:-1000}"
-    ports:
-      - "48001:8000"
+    network_mode: host
     environment:
       - GATEWAY_CONFIG=/app/config/providers.yml
       - GATEWAY_LOG_LEVEL=INFO
       - PYTHONUNBUFFERED=1
       - GATEWAY_DB_PATH=/app/data/gateway.db
       - GATEWAY_SECRET=your-secret-key-change-in-production
+      - GATEWAY_PORT=48001
+    command: ["python", "-m", "gateway.server", "--host", "0.0.0.0", "--port", "48001"]
     volumes:
       - ../config:/app/config:ro
       - ./data:/app/data
