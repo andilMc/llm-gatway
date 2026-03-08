@@ -1,93 +1,256 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="panel">
-    <h2>🚀 Configuration OpenCode</h2>
-    <p style="color: #888; margin-bottom: 20px;">
-        Configurez votre client OpenCode pour utiliser le Gateway LLM. 
-        Le Gateway agit comme un proxy OpenAI-compatible.
-    </p>
-    
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
-        <!-- Formulaire de configuration -->
-        <div>
-            <h3 style="margin-bottom: 15px;">⚙️ Paramètres</h3>
-            
-            <div class="form-group">
-                <label>URL du Gateway</label>
-                <input type="text" id="gateway_url" value="{{ config.gateway_url }}" 
-                       onchange="updatePreview()">
-            </div>
-            
-            <div class="form-group">
-                <label>Clé API (optionnel)</label>
+<div class="page-header">
+    <h1 class="page-title">Configuration OpenCode</h1>
+    <p class="page-subtitle">Configurez votre client OpenCode pour utiliser le Gateway LLM</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- Colonne gauche: Configuration -->
+    <div class="panel animate-in">
+        <div class="panel-header">
+            <h2 class="panel-title">Paramètres de connexion</h2>
+        </div>
+        
+        <div class="form-group">
+            <label for="gateway_url">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                URL du Gateway
+            </label>
+            <input type="text" id="gateway_url" value="{{ config.gateway_url }}" 
+                   placeholder="http://localhost:48001/v1" onchange="updatePreview()">
+            <small style="color: var(--text-muted); display: block; margin-top: 4px;">
+                L'URL de base de votre Gateway LLM
+            </small>
+        </div>
+        
+        <div class="form-group">
+            <label for="api_key">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                </svg>
+                Clé API
+            </label>
+            <div style="display: flex; gap: 8px;">
                 <input type="text" id="api_key" value="{{ config.api_key }}" 
-                       placeholder="any-key-works" onchange="updatePreview()">
+                       placeholder="any-key-works" onchange="updatePreview()" style="flex: 1;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="generateApiKey()" title="Générer une clé">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </button>
             </div>
+            <small style="color: var(--text-muted); display: block; margin-top: 4px;">
+                Optionnel - n'importe quelle valeur fonctionne
+            </small>
+        </div>
+        
+        <div class="form-group">
+            <label for="default_model">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Modèle par défaut
+            </label>
+            <select id="default_model" onchange="updatePreview()">
+                {% for model in models %}
+                <option value="{{ model.alias }}" {% if config.default_model == model.alias %}selected{% endif %}>
+                    {{ model.alias }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <!-- Modèles activés - Maintenant bien visible -->
+        <div class="form-group" style="margin-top: 24px;">
+            <label style="font-size: 1rem; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 11 12 14 22 4"/>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+                Modèles activés
+                <span id="model-count" style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">0</span>
+            </label>
             
-            <div class="form-group">
-                <label>Modèle par défaut</label>
-                <select id="default_model" onchange="updatePreview()">
+            <div style="background: #F9FAFB; border: 1px solid var(--border); border-radius: 12px; padding: 16px; max-height: 280px; overflow-y: auto;">
+                <div id="models-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
                     {% for model in models %}
-                    <option value="{{ model.alias }}" {% if config.default_model == model.alias %}selected{% endif %}>
-                        {{ model.alias }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Modèles activés</label>
-                <div style="max-height: 200px; overflow-y: auto; background: #252525; padding: 10px; border-radius: 6px;">
-                    {% for model in models %}
-                    <div style="margin-bottom: 8px;">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" 
-                                   value="{{ model.alias }}" 
-                                   {% if model.alias in config.enabled_models %}checked{% endif %}
-                                   onchange="updatePreview()"
-                                   class="model-checkbox">
-                            <span>{{ model.alias }}</span>
-                            <span style="color: #666; font-size: 0.85em;">({{ model.technical_name }})</span>
-                        </label>
-                    </div>
+                    <label class="model-checkbox-label" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: white; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='var(--border)'; else this.style.borderColor='var(--primary)';" onmouseleave="if(this.querySelector('input').checked) this.style.borderColor='var(--primary)'; else this.style.borderColor='var(--border)';">
+                        <input type="checkbox" 
+                               value="{{ model.alias }}" 
+                               {% if model.alias in config.enabled_models %}checked{% endif %}
+                               onchange="updatePreview(); updateModelStyles(this);"
+                               class="model-checkbox"
+                               style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 500; font-size: 0.875rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ model.alias }}
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ model.technical_name }}
+                            </div>
+                        </div>
+                    </label>
                     {% endfor %}
                 </div>
             </div>
             
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn" onclick="copyConfig()">📋 Copier</button>
-                <button class="btn btn-secondary" onclick="downloadConfig()">⬇️ Télécharger</button>
-                <button class="btn btn-secondary" onclick="testConnection()">🔗 Tester</button>
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button type="button" class="btn btn-sm btn-secondary" onclick="selectAllModels()">
+                    Tout sélectionner
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="deselectAllModels()">
+                    Tout désélectionner
+                </button>
             </div>
         </div>
         
-        <!-- Prévisualisation JSON -->
-        <div>
-            <h3 style="margin-bottom: 15px;">📄 Configuration JSON</h3>
-            <pre id="json-preview" class="opencode-config" style="height: 400px; overflow: auto;">{{ config.json }}</pre>
-            
-            <h3 style="margin: 20px 0 15px;">💻 Instructions</h3>
-            <div style="background: #252525; padding: 15px; border-radius: 8px; font-size: 0.9em;">
-                <p style="margin-bottom: 10px;"><strong>1. Créez le fichier de configuration :</strong></p>
-                <code style="display: block; background: #1a1a1a; padding: 10px; border-radius: 4px; margin-bottom: 15px; word-break: break-all;">
-                    {{ config_path }}
-                </code>
-                
-                <p style="margin-bottom: 10px;"><strong>2. Testez la connexion :</strong></p>
-                <code style="display: block; background: #1a1a1a; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-                    curl {{ config.gateway_url }}/models \<br>
-                    &nbsp;&nbsp;-H "Authorization: Bearer {{ config.api_key }}"
-                </code>
+        <!-- Actions -->
+        <div style="display: flex; gap: 12px; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+            <button class="btn btn-primary" onclick="copyConfig()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copier la config
+            </button>
+            <button class="btn btn-secondary" onclick="downloadConfig()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Télécharger
+            </button>
+            <button class="btn btn-secondary" onclick="testConnection()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="16 18 22 12 16 6"/>
+                    <polyline points="8 6 2 12 8 18"/>
+                </svg>
+                Tester
+            </button>
+        </div>
+        
+        <div id="test-result" style="margin-top: 16px;"></div>
+    </div>
+    
+    <!-- Colonne droite: Preview JSON et Instructions -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Preview JSON -->
+        <div class="panel animate-in" style="animation-delay: 0.1s;">
+            <div class="panel-header">
+                <h2 class="panel-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                    Configuration JSON
+                </h2>
+            </div>
+            <pre id="json-preview" class="config-preview" style="margin: 0; max-height: 300px; overflow: auto;">{{ config.json }}</pre>
+        </div>
+        
+        <!-- Instructions - Maintenant bien organisées -->
+        <div class="panel animate-in" style="animation-delay: 0.2s; flex: 1;">
+            <div class="panel-header">
+                <h2 class="panel-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    Instructions d'installation
+                </h2>
             </div>
             
-            <div id="test-result" style="margin-top: 15px;"></div>
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Étape 1 -->
+                <div class="instruction-step" style="display: flex; gap: 16px; padding: 16px; background: #F9FAFB; border-radius: 12px; border-left: 4px solid var(--primary);">
+                    <div style="width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; flex-shrink: 0;">1</div>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-main);">Créez le fichier de configuration</h4>
+                        <p style="margin: 0 0 10px 0; font-size: 0.875rem; color: var(--text-muted);">Copiez la configuration dans ce fichier :</p>
+                        <code style="display: block; background: #1E1B4B; color: #E0E7FF; padding: 12px; border-radius: 8px; font-family: 'Fira Code', monospace; font-size: 0.8rem; word-break: break-all;">
+                            {{ config_path }}
+                        </code>
+                    </div>
+                </div>
+                
+                <!-- Étape 2 -->
+                <div class="instruction-step" style="display: flex; gap: 16px; padding: 16px; background: #F9FAFB; border-radius: 12px; border-left: 4px solid var(--success);">
+                    <div style="width: 32px; height: 32px; background: var(--success); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; flex-shrink: 0;">2</div>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-main);">Testez la connexion</h4>
+                        <p style="margin: 0 0 10px 0; font-size: 0.875rem; color: var(--text-muted);">Vérifiez que le Gateway est accessible :</p>
+                        <code style="display: block; background: #1E1B4B; color: #E0E7FF; padding: 12px; border-radius: 8px; font-family: 'Fira Code', monospace; font-size: 0.8rem; overflow-x: auto;">
+                            curl {{ config.gateway_url }}/models \
+                            <br>&nbsp;&nbsp;-H "Authorization: Bearer {{ config.api_key }}"
+                        </code>
+                    </div>
+                </div>
+                
+                <!-- Étape 3 -->
+                <div class="instruction-step" style="display: flex; gap: 16px; padding: 16px; background: #F9FAFB; border-radius: 12px; border-left: 4px solid var(--cta);">
+                    <div style="width: 32px; height: 32px; background: var(--cta); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; flex-shrink: 0;">3</div>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-main);">Redémarrez OpenCode</h4>
+                        <p style="margin: 0; font-size: 0.875rem; color: var(--text-muted);">Fermez et rouvrez OpenCode pour appliquer les changements.</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
     let currentConfig = {{ config.json | safe }};
+    
+    function updateModelStyles(checkbox) {
+        const label = checkbox.closest('label');
+        if (checkbox.checked) {
+            label.style.borderColor = 'var(--primary)';
+            label.style.background = 'rgba(99, 102, 241, 0.05)';
+        } else {
+            label.style.borderColor = 'var(--border)';
+            label.style.background = 'white';
+        }
+        updateModelCount();
+    }
+    
+    function updateModelCount() {
+        const checked = document.querySelectorAll('.model-checkbox:checked').length;
+        document.getElementById('model-count').textContent = checked;
+    }
+    
+    function selectAllModels() {
+        document.querySelectorAll('.model-checkbox').forEach(cb => {
+            cb.checked = true;
+            updateModelStyles(cb);
+        });
+        updatePreview();
+    }
+    
+    function deselectAllModels() {
+        document.querySelectorAll('.model-checkbox').forEach(cb => {
+            cb.checked = false;
+            updateModelStyles(cb);
+        });
+        updatePreview();
+    }
+    
+    function generateApiKey() {
+        const key = 'llm-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        document.getElementById('api_key').value = key;
+        updatePreview();
+    }
     
     function updatePreview() {
         const gatewayUrl = document.getElementById('gateway_url').value;
@@ -129,7 +292,7 @@
     function copyConfig() {
         const text = JSON.stringify(currentConfig, null, 2);
         navigator.clipboard.writeText(text).then(() => {
-            alert('Configuration copiée dans le presse-papiers !');
+            showNotification('Configuration copiée dans le presse-papiers !', 'success');
         });
     }
     
@@ -142,6 +305,7 @@
         a.download = 'opencode-config.json';
         a.click();
         URL.revokeObjectURL(url);
+        showNotification('Configuration téléchargée !', 'success');
     }
     
     function testConnection() {
@@ -149,7 +313,7 @@
         const apiKey = document.getElementById('api_key').value || 'any-key-works';
         
         const resultDiv = document.getElementById('test-result');
-        resultDiv.innerHTML = '<p style="color: #ffaa00;">⏳ Test en cours...</p>';
+        resultDiv.innerHTML = '<div style="padding: 12px 16px; background: rgba(245, 158, 11, 0.1); color: var(--warning); border-radius: 8px; display: flex; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Test en cours...</div>';
         
         fetch(gatewayUrl + '/models', {
             method: 'GET',
@@ -159,17 +323,30 @@
         })
         .then(response => {
             if (response.ok) {
-                resultDiv.innerHTML = '<p style="color: #00ff88;">✅ Connexion réussie ! Le Gateway est accessible.</p>';
+                resultDiv.innerHTML = '<div style="padding: 12px 16px; background: rgba(16, 185, 129, 0.1); color: var(--success); border-radius: 8px; display: flex; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Connexion réussie ! Le Gateway est accessible.</div>';
             } else {
-                resultDiv.innerHTML = '<p style="color: #ff4444;">❌ Erreur ' + response.status + ': ' + response.statusText + '</p>';
+                resultDiv.innerHTML = '<div style="padding: 12px 16px; background: rgba(239, 68, 68, 0.1); color: var(--error); border-radius: 8px; display: flex; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Erreur ' + response.status + ': ' + response.statusText + '</div>';
             }
         })
         .catch(error => {
-            resultDiv.innerHTML = '<p style="color: #ff4444;">❌ Impossible de se connecter : ' + error.message + '</p>';
+            resultDiv.innerHTML = '<div style="padding: 12px 16px; background: rgba(239, 68, 68, 0.1); color: var(--error); border-radius: 8px; display: flex; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Impossible de se connecter : ' + error.message + '</div>';
         });
     }
     
+    function showNotification(message, type) {
+        // Simple notification implementation
+        const div = document.createElement('div');
+        div.style.cssText = 'position: fixed; bottom: 20px; right: 20px; padding: 16px 24px; background: var(--success); color: white; border-radius: 8px; box-shadow: var(--shadow-md); z-index: 1000; font-weight: 500;';
+        div.textContent = message;
+        document.body.appendChild(div);
+        setTimeout(() => div.remove(), 3000);
+    }
+    
     // Initialize
+    document.querySelectorAll('.model-checkbox').forEach(cb => {
+        updateModelStyles(cb);
+    });
+    updateModelCount();
     updatePreview();
 </script>
 {% endblock %}
