@@ -32,7 +32,7 @@
     </div>
 </div>
 
-<div class="panel" hx-ext="ws" ws-connect="/admin/ws/stats">
+<div class="panel">
     <h2>📊 Statistiques Temps Réel</h2>
     <div id="realtime-stats">
         <p>Connexion en cours...</p>
@@ -50,29 +50,53 @@
 </div>
 
 <script>
-    document.body.addEventListener('htmx:wsOnMessage', function(evt) {
-        const data = JSON.parse(evt.detail.message);
-        if (data.type === 'stats') {
-            const stats = data.data.stats;
-            const health = data.data.health;
-            
-            let html = '<div class="stats-grid">';
-            html += `<div class="stat-card"><div class="stat-label">Requêtes (1h)</div><div class="stat-value">${stats.total_requests}</div></div>`;
-            html += `<div class="stat-card"><div class="stat-label">Succès</div><div class="stat-value">${stats.successful_requests}</div></div>`;
-            html += `<div class="stat-card error"><div class="stat-label">Échecs</div><div class="stat-value">${stats.failed_requests}</div></div>`;
-            html += `<div class="stat-card"><div class="stat-label">Latence</div><div class="stat-value">${stats.average_latency_ms}ms</div></div>`;
-            html += '</div>';
-            
-            html += '<h3 style="margin-top: 20px;">État des Providers</h3><table><tr><th>Provider</th><th>Status</th><th>Clés Disponibles</th></tr>';
-            health.forEach(function(h) {
-                const statusClass = h.is_healthy ? 'healthy' : 'unhealthy';
-                const statusText = h.is_healthy ? 'OK' : 'KO';
-                html += `<tr><td>${h.name}</td><td><span class="status ${statusClass}">${statusText}</span></td><td>${h.available_keys}/${h.total_keys}</td></tr>`;
-            });
-            html += '</table>';
-            
-            document.getElementById('realtime-stats').innerHTML = html;
-        }
-    });
+    // Real-time stats via WebSocket
+    function connectStatsWebSocket() {
+        const ws = new WebSocket('ws://' + window.location.host + '/admin/ws/stats');
+        
+        ws.onopen = function() {
+            console.log('Stats WebSocket connected');
+        };
+        
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'stats') {
+                    const stats = data.data.stats;
+                    const health = data.data.health;
+                    
+                    let html = '<div class="stats-grid">';
+                    html += `<div class="stat-card"><div class="stat-label">Requêtes (1h)</div><div class="stat-value">${stats.total_requests}</div></div>`;
+                    html += `<div class="stat-card"><div class="stat-label">Succès</div><div class="stat-value">${stats.successful_requests}</div></div>`;
+                    html += `<div class="stat-card error"><div class="stat-label">Échecs</div><div class="stat-value">${stats.failed_requests}</div></div>`;
+                    html += `<div class="stat-card"><div class="stat-label">Latence</div><div class="stat-value">${stats.average_latency_ms}ms</div></div>`;
+                    html += '</div>';
+                    
+                    html += '<h3 style="margin-top: 20px;">État des Providers</h3><table><tr><th>Provider</th><th>Status</th><th>Clés Disponibles</th></tr>';
+                    health.forEach(function(h) {
+                        const statusClass = h.is_healthy ? 'healthy' : 'unhealthy';
+                        const statusText = h.is_healthy ? 'OK' : 'KO';
+                        html += `<tr><td>${h.name}</td><td><span class="status ${statusClass}">${statusText}</span></td><td>${h.available_keys}/${h.total_keys}</td></tr>`;
+                    });
+                    html += '</table>';
+                    
+                    document.getElementById('realtime-stats').innerHTML = html;
+                }
+            } catch (e) {
+                console.error('Error parsing stats:', e);
+            }
+        };
+        
+        ws.onclose = function() {
+            console.log('Stats WebSocket disconnected, reconnecting...');
+            setTimeout(connectStatsWebSocket, 5000);
+        };
+        
+        ws.onerror = function(e) {
+            console.error('Stats WebSocket error:', e);
+        };
+    }
+    
+    connectStatsWebSocket();
 </script>
 {% endblock %}

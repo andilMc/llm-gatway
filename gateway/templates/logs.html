@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="panel" hx-ext="ws" ws-connect="/admin/ws/logs">
+<div class="panel">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h2>📝 Logs en Temps Réel</h2>
         <div>
@@ -18,32 +18,58 @@
     function clearLogs() {
         document.getElementById('logs-container').innerHTML = '';
     }
-
-    document.body.addEventListener('htmx:wsOnMessage', function(evt) {
-        const data = JSON.parse(evt.detail.message);
-        if (data.type === 'log') {
-            const container = document.getElementById('logs-container');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            
-            const timestamp = new Date(data.timestamp).toLocaleTimeString();
-            const levelClass = 'log-level-' + data.level.toLowerCase();
-            
-            entry.innerHTML = `
-                <span class="log-timestamp">${timestamp}</span>
-                <span class="${levelClass}">[${data.level}]</span>
-                <span style="color: #888;">${data.logger}:</span>
-                <span>${data.message}</span>
-            `;
-            
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
-            
-            // Keep only last 500 entries
-            while (container.children.length > 500) {
-                container.removeChild(container.firstChild);
+    
+    // Connect to WebSocket for real-time logs
+    function connectLogsWebSocket() {
+        const ws = new WebSocket('ws://' + window.location.host + '/admin/ws/logs');
+        
+        ws.onopen = function() {
+            console.log('Logs WebSocket connected');
+            document.getElementById('logs-container').innerHTML = '';
+        };
+        
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'log') {
+                    const container = document.getElementById('logs-container');
+                    const entry = document.createElement('div');
+                    entry.className = 'log-entry';
+                    
+                    const timestamp = new Date(data.timestamp).toLocaleTimeString();
+                    const levelClass = 'log-level-' + data.level.toLowerCase();
+                    
+                    entry.innerHTML = `
+                        <span class="log-timestamp">${timestamp}</span>
+                        <span class="${levelClass}">[${data.level}]</span>
+                        <span style="color: #888;">${data.logger}:</span>
+                        <span>${data.message}</span>
+                    `;
+                    
+                    container.appendChild(entry);
+                    container.scrollTop = container.scrollHeight;
+                    
+                    // Keep only last 500 entries
+                    while (container.children.length > 500) {
+                        container.removeChild(container.firstChild);
+                    }
+                }
+            } catch (e) {
+                console.error('Error parsing log:', e);
             }
-        }
-    });
+        };
+        
+        ws.onclose = function() {
+            console.log('Logs WebSocket disconnected, reconnecting...');
+            document.getElementById('logs-container').innerHTML = '<p style="color: #666;">Connexion perdue, reconnexion...</p>';
+            setTimeout(connectLogsWebSocket, 5000);
+        };
+        
+        ws.onerror = function(e) {
+            console.error('Logs WebSocket error:', e);
+        };
+    }
+    
+    connectLogsWebSocket();
 </script>
 {% endblock %}
