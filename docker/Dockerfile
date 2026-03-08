@@ -20,6 +20,7 @@ ARG USER_ID=1000
 ARG GROUP_ID=1000
 RUN groupadd -g ${GROUP_ID} gateway && \
     useradd -l -u ${USER_ID} -g gateway gateway && \
+    mkdir -p /app/data && \
     chown -R gateway:gateway /app
 
 # Switch to non-root user

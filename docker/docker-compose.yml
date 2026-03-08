@@ -18,7 +18,7 @@ services:
       - GATEWAY_SECRET=your-secret-key-change-in-production
     volumes:
       - ../config:/app/config:ro
-      - gateway-data:/app/data
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -58,4 +58,3 @@ services:
 
 volumes:
   grafana-storage:
-  gateway-data:

@@ -26,9 +26,9 @@
                 <td>{{ provider.type }}</td>
                 <td>{{ provider.base_url }}</td>
                 <td>{{ provider.strategy }}</td>
-                <td>{{ provider.keys|length }}</td>
+                <td>{% if provider.api_keys %}{{ provider.api_keys|length }}{% else %}0{% endif %}</td>
                 <td>
-                    {% if provider.health.is_healthy %}
+                    {% if provider.health and provider.health.is_healthy %}
                     <span class="status healthy">OK</span>
                     {% else %}
                     <span class="status unhealthy">KO</span>

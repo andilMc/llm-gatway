@@ -81,10 +81,10 @@ async def list_providers(request: Request):
     health_status = db.get_health_status()
 
     # Add health info to providers
-    health_map = {h["provider_id"]: h for h in health_status}
+    health_map = {h["id"]: h for h in health_status}
     for provider in providers:
         provider["health"] = health_map.get(provider["id"], {})
-        provider["keys"] = db.get_api_keys_by_provider(provider["id"])
+        provider["api_keys"] = db.get_api_keys_by_provider(provider["id"])
 
     return templates.TemplateResponse(
         "providers.html",
@@ -399,26 +399,21 @@ async def get_opencode_config():
 
 @router.post("/opencode/setup")
 async def setup_opencode():
-    """Auto-configure OpenCode client."""
-    import os
+    """Generate OpenCode configuration with setup instructions."""
     import platform
 
     db = get_db()
     models = db.get_all_models()
 
-    # Detect OS and config path
+    # Detect OS
     system = platform.system()
-    home = os.path.expanduser("~")
 
-    if system == "Darwin":  # macOS
-        config_dir = os.path.join(home, ".config", "opencode")
+    if system == "Darwin":
+        config_path = "~/.config/opencode/config.json"
     elif system == "Linux":
-        config_dir = os.path.join(home, ".config", "opencode")
-    else:  # Windows
-        config_dir = os.path.join(os.environ.get("APPDATA", home), "opencode")
-
-    os.makedirs(config_dir, exist_ok=True)
-    config_file = os.path.join(config_dir, "config.json")
+        config_path = "~/.config/opencode/config.json"
+    else:
+        config_path = "%APPDATA%\\opencode\\config.json"
 
     # Build config
     opencode_config = {
@@ -437,15 +432,15 @@ async def setup_opencode():
             "model": model["alias"],
         }
 
-    # Write config
-    with open(config_file, "w") as f:
-        json.dump(opencode_config, f, indent=2)
+    config_json = json.dumps(opencode_config, indent=2)
 
     return JSONResponse(
         {
             "success": True,
-            "config_path": config_file,
-            "message": f"OpenCode configured at {config_file}",
+            "system": system,
+            "config_path": config_path,
+            "config": config_json,
+            "instructions": f"Créez le fichier {config_path} avec le contenu ci-dessous:",
         }
     )
 

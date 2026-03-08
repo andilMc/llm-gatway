@@ -48,7 +48,9 @@ class DatabaseManager:
 
     def _ensure_data_dir(self):
         """Ensure the data directory exists."""
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        db_dir = os.path.dirname(self.db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection with row factory."""
