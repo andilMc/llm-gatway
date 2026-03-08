@@ -397,17 +397,38 @@ async def get_opencode_config():
     return json.dumps(config, indent=2)
 
 
-@router.post("/opencode/setup")
-async def setup_opencode():
-    """Generate OpenCode configuration with setup instructions."""
+@router.get("/opencode", response_class=HTMLResponse)
+async def opencode_config_page(request: Request):
+    """OpenCode configuration page."""
     import platform
 
     db = get_db()
     models = db.get_all_models()
 
+    # Get saved config from database
+    gateway_url = db.get_config("opencode_gateway_url", "http://localhost:48001/v1")
+    api_key = db.get_config("opencode_api_key", "any-key-works")
+    default_model = db.get_config("opencode_default_model", "")
+    enabled_models_str = db.get_config("opencode_enabled_models", "")
+    enabled_models = enabled_models_str.split(",") if enabled_models_str else []
+
+    # If no saved config, enable all models
+    if not enabled_models:
+        enabled_models = [m["alias"] for m in models]
+
+    # Build default model list
+    model_list = []
+    for model in models:
+        model_list.append(
+            {
+                "alias": model["alias"],
+                "technical_name": model["technical_name"],
+                "is_enabled": model["alias"] in enabled_models,
+            }
+        )
+
     # Detect OS
     system = platform.system()
-
     if system == "Darwin":
         config_path = "~/.config/opencode/config.json"
     elif system == "Linux":
@@ -415,34 +436,62 @@ async def setup_opencode():
     else:
         config_path = "%APPDATA%\\opencode\\config.json"
 
-    # Build config
+    # Build initial JSON config
     opencode_config = {
+        "version": "1.0",
         "llm": {
             "provider": "openai",
-            "base_url": "http://localhost:48001/v1",
-            "api_key": "any-key-works",
+            "base_url": gateway_url,
+            "api_key": api_key,
         },
         "models": {},
     }
 
-    # Add available models
-    for model in models:
-        opencode_config["models"][model["alias"]] = {
-            "provider": "openai",
-            "model": model["alias"],
-        }
+    for m in model_list:
+        if m["is_enabled"]:
+            opencode_config["models"][m["alias"]] = {
+                "provider": "openai",
+                "model": m["alias"],
+            }
+
+    if default_model and default_model in enabled_models:
+        opencode_config["default_model"] = default_model
 
     config_json = json.dumps(opencode_config, indent=2)
 
-    return JSONResponse(
+    return templates.TemplateResponse(
+        "opencode.html",
         {
-            "success": True,
-            "system": system,
+            "request": request,
+            "models": model_list,
+            "config": {
+                "gateway_url": gateway_url,
+                "api_key": api_key,
+                "default_model": default_model,
+                "enabled_models": enabled_models,
+                "json": config_json,
+            },
             "config_path": config_path,
-            "config": config_json,
-            "instructions": f"Créez le fichier {config_path} avec le contenu ci-dessous:",
-        }
+        },
     )
+
+
+@router.post("/opencode/save")
+async def save_opencode_config(
+    gateway_url: str = Form(...),
+    api_key: str = Form(...),
+    default_model: str = Form(""),
+    enabled_models: str = Form(""),
+):
+    """Save OpenCode configuration to database."""
+    db = get_db()
+
+    db.set_config("opencode_gateway_url", gateway_url)
+    db.set_config("opencode_api_key", api_key)
+    db.set_config("opencode_default_model", default_model)
+    db.set_config("opencode_enabled_models", enabled_models)
+
+    return JSONResponse({"success": True, "message": "Configuration sauvegardée !"})
 
 
 @router.get("/api/stats")

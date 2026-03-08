@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+    <h2>🚀 Configuration OpenCode</h2>
+    <p style="color: #888; margin-bottom: 20px;">
+        Configurez votre client OpenCode pour utiliser le Gateway LLM. 
+        Le Gateway agit comme un proxy OpenAI-compatible.
+    </p>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+        <!-- Formulaire de configuration -->
+        <div>
+            <h3 style="margin-bottom: 15px;">⚙️ Paramètres</h3>
+            
+            <div class="form-group">
+                <label>URL du Gateway</label>
+                <input type="text" id="gateway_url" value="{{ config.gateway_url }}" 
+                       onchange="updatePreview()">
+            </div>
+            
+            <div class="form-group">
+                <label>Clé API (optionnel)</label>
+                <input type="text" id="api_key" value="{{ config.api_key }}" 
+                       placeholder="any-key-works" onchange="updatePreview()">
+            </div>
+            
+            <div class="form-group">
+                <label>Modèle par défaut</label>
+                <select id="default_model" onchange="updatePreview()">
+                    {% for model in models %}
+                    <option value="{{ model.alias }}" {% if config.default_model == model.alias %}selected{% endif %}>
+                        {{ model.alias }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Modèles activés</label>
+                <div style="max-height: 200px; overflow-y: auto; background: #252525; padding: 10px; border-radius: 6px;">
+                    {% for model in models %}
+                    <div style="margin-bottom: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" 
+                                   value="{{ model.alias }}" 
+                                   {% if model.alias in config.enabled_models %}checked{% endif %}
+                                   onchange="updatePreview()"
+                                   class="model-checkbox">
+                            <span>{{ model.alias }}</span>
+                            <span style="color: #666; font-size: 0.85em;">({{ model.technical_name }})</span>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="copyConfig()">📋 Copier</button>
+                <button class="btn btn-secondary" onclick="downloadConfig()">⬇️ Télécharger</button>
+                <button class="btn btn-secondary" onclick="testConnection()">🔗 Tester</button>
+            </div>
+        </div>
+        
+        <!-- Prévisualisation JSON -->
+        <div>
+            <h3 style="margin-bottom: 15px;">📄 Configuration JSON</h3>
+            <pre id="json-preview" class="opencode-config" style="height: 400px; overflow: auto;">{{ config.json }}</pre>
+            
+            <h3 style="margin: 20px 0 15px;">💻 Instructions</h3>
+            <div style="background: #252525; padding: 15px; border-radius: 8px; font-size: 0.9em;">
+                <p style="margin-bottom: 10px;"><strong>1. Créez le fichier de configuration :</strong></p>
+                <code style="display: block; background: #1a1a1a; padding: 10px; border-radius: 4px; margin-bottom: 15px; word-break: break-all;">
+                    {{ config_path }}
+                </code>
+                
+                <p style="margin-bottom: 10px;"><strong>2. Testez la connexion :</strong></p>
+                <code style="display: block; background: #1a1a1a; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                    curl {{ config.gateway_url }}/models \<br>
+                    &nbsp;&nbsp;-H "Authorization: Bearer {{ config.api_key }}"
+                </code>
+            </div>
+            
+            <div id="test-result" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentConfig = {{ config.json | safe }};
+    
+    function updatePreview() {
+        const gatewayUrl = document.getElementById('gateway_url').value;
+        const apiKey = document.getElementById('api_key').value || 'any-key-works';
+        const defaultModel = document.getElementById('default_model').value;
+        
+        // Get selected models
+        const selectedModels = [];
+        document.querySelectorAll('.model-checkbox:checked').forEach(cb => {
+            selectedModels.push(cb.value);
+        });
+        
+        // Build config
+        const config = {
+            version: "1.0",
+            llm: {
+                provider: "openai",
+                base_url: gatewayUrl,
+                api_key: apiKey,
+            },
+            models: {}
+        };
+        
+        selectedModels.forEach(model => {
+            config.models[model] = {
+                provider: "openai",
+                model: model,
+            };
+        });
+        
+        if (defaultModel && selectedModels.includes(defaultModel)) {
+            config.default_model = defaultModel;
+        }
+        
+        currentConfig = config;
+        document.getElementById('json-preview').textContent = JSON.stringify(config, null, 2);
+    }
+    
+    function copyConfig() {
+        const text = JSON.stringify(currentConfig, null, 2);
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Configuration copiée dans le presse-papiers !');
+        });
+    }
+    
+    function downloadConfig() {
+        const text = JSON.stringify(currentConfig, null, 2);
+        const blob = new Blob([text], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'opencode-config.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    
+    function testConnection() {
+        const gatewayUrl = document.getElementById('gateway_url').value;
+        const apiKey = document.getElementById('api_key').value || 'any-key-works';
+        
+        const resultDiv = document.getElementById('test-result');
+        resultDiv.innerHTML = '<p style="color: #ffaa00;">⏳ Test en cours...</p>';
+        
+        fetch(gatewayUrl + '/models', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + apiKey
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                resultDiv.innerHTML = '<p style="color: #00ff88;">✅ Connexion réussie ! Le Gateway est accessible.</p>';
+            } else {
+                resultDiv.innerHTML = '<p style="color: #ff4444;">❌ Erreur ' + response.status + ': ' + response.statusText + '</p>';
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = '<p style="color: #ff4444;">❌ Impossible de se connecter : ' + error.message + '</p>';
+        });
+    }
+    
+    // Initialize
+    updatePreview();
+</script>
+{% endblock %}
