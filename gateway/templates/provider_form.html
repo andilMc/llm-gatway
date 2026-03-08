@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+    <h2>{% if provider %}Modifier{% else %}Nouveau{% endif %} Provider</h2>
+    
+    <form hx-post="/admin/providers{% if provider %}/{{ provider.id }}{% endif %}" hx-target="#form-result">
+        <div class="form-group">
+            <label>Nom du Provider</label>
+            <input type="text" name="name" value="{{ provider.name if provider else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Type</label>
+            <select name="provider_type" required>
+                <option value="ollama" {% if provider and provider.type == 'ollama' %}selected{% endif %}>Ollama</option>
+                <option value="openai" {% if provider and provider.type == 'openai' %}selected{% endif %}>OpenAI</option>
+                <option value="anthropic" {% if provider and provider.type == 'anthropic' %}selected{% endif %}>Anthropic</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>URL de base</label>
+            <input type="text" name="base_url" value="{{ provider.base_url if provider else 'https://ollama.com/v1' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Stratégie de rotation</label>
+            <select name="strategy" required>
+                <option value="sequential" {% if provider and provider.strategy == 'sequential' %}selected{% endif %}>Séquentiel</option>
+                <option value="round_robin" {% if provider and provider.strategy == 'round_robin' %}selected{% endif %}>Round Robin</option>
+                <option value="random" {% if provider and provider.strategy == 'random' %}selected{% endif %}>Aléatoire</option>
+                <option value="fallback" {% if provider and provider.strategy == 'fallback' %}selected{% endif %}>Fallback</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Timeout (secondes)</label>
+            <input type="number" name="timeout" value="{{ provider.timeout if provider else 120 }}" min="10" max="300">
+        </div>
+        
+        <div class="form-group">
+            <label>Nombre de retries</label>
+            <input type="number" name="max_retries" value="{{ provider.max_retries if provider else 3 }}" min="0" max="10">
+        </div>
+        
+        <div id="form-result"></div>
+        
+        <button type="submit" class="btn">{% if provider %}Mettre à jour{% else %}Créer{% endif %}</button>
+        <a href="/admin/providers" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}
