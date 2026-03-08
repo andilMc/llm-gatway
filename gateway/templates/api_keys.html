@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>🔑 Clés API</h2>
+        <button class="btn" onclick="document.getElementById('new-key-form').style.display='block'">+ Nouvelle Clé</button>
+    </div>
+
+    <div id="new-key-form" style="display: none; margin-bottom: 30px; padding: 20px; background: #252525; border-radius: 8px;">
+        <h3>Nouvelle Clé API</h3>
+        <form hx-post="/admin/api-keys" hx-target="#keys-table" hx-swap="outerHTML">
+            <div class="form-group">
+                <label>Provider</label>
+                <select name="provider_id" required>
+                    {% for provider in providers %}
+                    <option value="{{ provider.id }}">{{ provider.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Clé API</label>
+                <input type="text" name="api_key" placeholder="sk-..." required>
+            </div>
+            <div class="form-group">
+                <label>Modèles autorisés (séparés par des virgules)</label>
+                <input type="text" name="models" placeholder="logic-supreme, code-architect">
+            </div>
+            <button type="submit" class="btn">Créer</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('new-key-form').style.display='none'">Annuler</button>
+        </form>
+    </div>
+
+    <table id="keys-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Provider</th>
+                <th>Aperçu</th>
+                <th>Modèles</th>
+                <th>Status</th>
+                <th>Requêtes</th>
+                <th>Dernière utilisation</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for key in keys %}
+            <tr>
+                <td>{{ key.id }}</td>
+                <td>{{ provider_map[key.provider_id] or 'Inconnu' }}</td>
+                <td><code>{{ key.key_preview }}</code></td>
+                <td>{{ key.models_allowed|join(', ') if key.models_allowed else 'Tous' }}</td>
+                <td>
+                    {% if key.status == 'available' %}
+                    <span class="status healthy">Disponible</span>
+                    {% elif key.status == 'rate_limited' %}
+                    <span class="status warning">Rate Limit</span>
+                    {% elif key.status == 'quota_exhausted' %}
+                    <span class="status warning">Quota Épuisé</span>
+                    {% elif key.status == 'disabled' %}
+                    <span class="status unhealthy">Désactivée</span>
+                    {% else %}
+                    <span class="status">{{ key.status }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ key.total_requests }}</td>
+                <td>{{ key.last_used or 'Jamais' }}</td>
+                <td>
+                    <button class="btn btn-danger" style="padding: 5px 10px;"
+                            hx-delete="/admin/api-keys/{{ key.id }}"
+                            hx-confirm="Êtes-vous sûr ?"
+                            hx-target="closest tr"
+                            hx-swap="outerHTML">🗑️</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

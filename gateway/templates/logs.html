@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel" hx-ext="ws" ws-connect="/admin/ws/logs">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>📝 Logs en Temps Réel</h2>
+        <div>
+            <button class="btn btn-secondary" onclick="clearLogs()">Effacer</button>
+        </div>
+    </div>
+
+    <div id="logs-container" class="logs-container">
+        <p style="color: #666;">Connexion en cours aux logs...</p>
+    </div>
+</div>
+
+<script>
+    function clearLogs() {
+        document.getElementById('logs-container').innerHTML = '';
+    }
+
+    document.body.addEventListener('htmx:wsOnMessage', function(evt) {
+        const data = JSON.parse(evt.detail.message);
+        if (data.type === 'log') {
+            const container = document.getElementById('logs-container');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            const timestamp = new Date(data.timestamp).toLocaleTimeString();
+            const levelClass = 'log-level-' + data.level.toLowerCase();
+            
+            entry.innerHTML = `
+                <span class="log-timestamp">${timestamp}</span>
+                <span class="${levelClass}">[${data.level}]</span>
+                <span style="color: #888;">${data.logger}:</span>
+                <span>${data.message}</span>
+            `;
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            
+            // Keep only last 500 entries
+            while (container.children.length > 500) {
+                container.removeChild(container.firstChild);
+            }
+        }
+    });
+</script>
+{% endblock %}

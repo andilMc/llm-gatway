@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>🔌 Providers</h2>
+        <a href="/admin/providers/new" class="btn">+ Nouveau Provider</a>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Type</th>
+                <th>URL</th>
+                <th>Stratégie</th>
+                <th>Clés</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for provider in providers %}
+            <tr>
+                <td><strong>{{ provider.name }}</strong></td>
+                <td>{{ provider.type }}</td>
+                <td>{{ provider.base_url }}</td>
+                <td>{{ provider.strategy }}</td>
+                <td>{{ provider.keys|length }}</td>
+                <td>
+                    {% if provider.health.is_healthy %}
+                    <span class="status healthy">OK</span>
+                    {% else %}
+                    <span class="status unhealthy">KO</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="/admin/providers/{{ provider.id }}/edit" class="btn btn-secondary" style="padding: 5px 10px;">✏️</a>
+                    <button class="btn btn-danger" style="padding: 5px 10px;" 
+                            hx-delete="/admin/providers/{{ provider.id }}"
+                            hx-confirm="Êtes-vous sûr de vouloir supprimer ce provider ?"
+                            hx-target="closest tr"
+                            hx-swap="outerHTML">🗑️</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

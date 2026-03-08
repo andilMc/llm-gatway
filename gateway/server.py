@@ -8,6 +8,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 from .models import (
@@ -23,6 +24,7 @@ from .config_loader import ConfigLoader
 from .router import ProviderRouter
 from .providers import OllamaProvider
 from .streaming import stream_relay, create_streaming_response
+from .admin_routes import router as admin_router
 
 # Configure logging
 logging.basicConfig(
@@ -114,6 +116,12 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Include admin routes
+app.include_router(admin_router)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="gateway/static"), name="static")
 
 
 @app.get("/health")
