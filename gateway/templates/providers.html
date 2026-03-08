@@ -1,10 +1,21 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="page-header">
+    <h1 class="page-title">Providers</h1>
+    <p class="page-subtitle">G&eacute;rez vos fournisseurs LLM</p>
+</div>
+
 <div class="panel">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>🔌 Providers</h2>
-        <a href="/admin/providers/new" class="btn">+ Nouveau Provider</a>
+    <div class="panel-header">
+        <h2 class="panel-title">Liste des Providers</h2>
+        <a href="/admin/providers/new" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nouveau Provider
+        </a>
     </div>
     
     <table>
@@ -13,8 +24,8 @@
                 <th>Nom</th>
                 <th>Type</th>
                 <th>URL</th>
-                <th>Stratégie</th>
-                <th>Clés</th>
+                <th>Strat&eacute;gie</th>
+                <th>Cl&eacute;s</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -23,24 +34,42 @@
             {% for provider in providers %}
             <tr>
                 <td><strong>{{ provider.name }}</strong></td>
-                <td>{{ provider.type }}</td>
-                <td>{{ provider.base_url }}</td>
+                <td>
+                    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(99, 102, 241, 0.1); color: #4F46E5; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                        {{ provider.type }}
+                    </span>
+                </td>
+                <td style="font-family: 'Fira Code', monospace; font-size: 0.8rem; color: var(--text-muted);">{{ provider.base_url }}</td>
                 <td>{{ provider.strategy }}</td>
-                <td>{% if provider.api_keys %}{{ provider.api_keys|length }}{% else %}0{% endif %}</td>
+                <td>
+                    <span style="font-family: 'Fira Code', monospace; font-weight: 600;">{{ provider.api_keys|length }}</span>
+                </td>
                 <td>
                     {% if provider.health and provider.health.is_healthy %}
-                    <span class="status healthy">OK</span>
+                    <span class="status healthy">Actif</span>
                     {% else %}
-                    <span class="status unhealthy">KO</span>
+                    <span class="status unhealthy">Inactif</span>
                     {% endif %}
                 </td>
                 <td>
-                    <a href="/admin/providers/{{ provider.id }}/edit" class="btn btn-secondary" style="padding: 5px 10px;">✏️</a>
-                    <button class="btn btn-danger" style="padding: 5px 10px;" 
-                            hx-delete="/admin/providers/{{ provider.id }}"
-                            hx-confirm="Êtes-vous sûr de vouloir supprimer ce provider ?"
-                            hx-target="closest tr"
-                            hx-swap="outerHTML">🗑️</button>
+                    <div style="display: flex; gap: 8px;">
+                        <a href="/admin/providers/{{ provider.id }}/edit" class="btn btn-secondary btn-sm">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </a>
+                        <button class="btn btn-danger btn-sm" 
+                                hx-delete="/admin/providers/{{ provider.id }}"
+                                hx-confirm="Voulez-vous vraiment supprimer ce provider ?"
+                                hx-target="closest tr"
+                                hx-swap="outerHTML">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                        </button>
+                    </div>
                 </td>
             </tr>
             {% endfor %}

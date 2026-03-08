@@ -1,16 +1,25 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="page-header">
+    <h1 class="page-title">Logs</h1>
+    <p class="page-subtitle">Logs en temps r&eacute;el du syst&egrave;me</p>
+</div>
+
 <div class="panel">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>📝 Logs en Temps Réel</h2>
-        <div>
-            <button class="btn btn-secondary" onclick="clearLogs()">Effacer</button>
-        </div>
+    <div class="panel-header">
+        <h2 class="panel-title">Flux de Logs</h2>
+        <button class="btn btn-secondary btn-sm" onclick="clearLogs()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Effacer
+        </button>
     </div>
 
     <div id="logs-container" class="logs-container">
-        <p style="color: #666;">Connexion en cours aux logs...</p>
+        <p style="color: rgba(255,255,255,0.4);">Connexion en cours aux logs...</p>
     </div>
 </div>
 
@@ -19,7 +28,6 @@
         document.getElementById('logs-container').innerHTML = '';
     }
     
-    // Connect to WebSocket for real-time logs
     function connectLogsWebSocket() {
         const ws = new WebSocket('ws://' + window.location.host + '/admin/ws/logs');
         
@@ -42,14 +50,13 @@
                     entry.innerHTML = `
                         <span class="log-timestamp">${timestamp}</span>
                         <span class="${levelClass}">[${data.level}]</span>
-                        <span style="color: #888;">${data.logger}:</span>
-                        <span>${data.message}</span>
+                        <span style="color: rgba(255,255,255,0.5);">${data.logger}:</span>
+                        <span style="color: rgba(255,255,255,0.8);">${data.message}</span>
                     `;
                     
                     container.appendChild(entry);
                     container.scrollTop = container.scrollHeight;
                     
-                    // Keep only last 500 entries
                     while (container.children.length > 500) {
                         container.removeChild(container.firstChild);
                     }
@@ -61,7 +68,7 @@
         
         ws.onclose = function() {
             console.log('Logs WebSocket disconnected, reconnecting...');
-            document.getElementById('logs-container').innerHTML = '<p style="color: #666;">Connexion perdue, reconnexion...</p>';
+            document.getElementById('logs-container').innerHTML = '<p style="color: rgba(255,255,255,0.4);">Connexion perdue, reconnexion...</p>';
             setTimeout(connectLogsWebSocket, 5000);
         };
         

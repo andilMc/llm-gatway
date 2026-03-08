@@ -1,33 +1,48 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="page-header">
+    <h1 class="page-title">Cl&eacute;s API</h1>
+    <p class="page-subtitle">G&eacute;rez vos cl&eacute;s API</p>
+</div>
+
 <div class="panel">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>🔑 Clés API</h2>
-        <button class="btn" onclick="document.getElementById('new-key-form').style.display='block'">+ Nouvelle Clé</button>
+    <div class="panel-header">
+        <h2 class="panel-title">Liste des Cl&eacute;s</h2>
+        <button class="btn btn-primary" onclick="document.getElementById('new-key-form').style.display='block'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nouvelle Cl&eacute;
+        </button>
     </div>
 
-    <div id="new-key-form" style="display: none; margin-bottom: 30px; padding: 20px; background: #252525; border-radius: 8px;">
-        <h3>Nouvelle Clé API</h3>
+    <div id="new-key-form" style="display: none; margin-bottom: 24px; padding: 20px; background: #F9FAFB; border-radius: 8px; border: 1px solid var(--border);">
+        <h3 style="margin-bottom: 16px; font-family: 'Fira Code', monospace; font-size: 1rem;">Nouvelle Cl&eacute; API</h3>
         <form hx-post="/admin/api-keys" hx-target="#keys-table" hx-swap="outerHTML">
-            <div class="form-group">
-                <label>Provider</label>
-                <select name="provider_id" required>
-                    {% for provider in providers %}
-                    <option value="{{ provider.id }}">{{ provider.name }}</option>
-                    {% endfor %}
-                </select>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label>Provider</label>
+                    <select name="provider_id" required>
+                        {% for provider in providers %}
+                        <option value="{{ provider.id }}">{{ provider.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Cl&eacute; API</label>
+                    <input type="text" name="api_key" placeholder="sk-..." required>
+                </div>
             </div>
             <div class="form-group">
-                <label>Clé API</label>
-                <input type="text" name="api_key" placeholder="sk-..." required>
-            </div>
-            <div class="form-group">
-                <label>Modèles autorisés (séparés par des virgules)</label>
+                <label>Mod&egrave;les autoris&eacute;s (s&eacute;par&eacute;s par des virgules)</label>
                 <input type="text" name="models" placeholder="logic-supreme, code-architect">
             </div>
-            <button type="submit" class="btn">Créer</button>
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('new-key-form').style.display='none'">Annuler</button>
+            <div style="display: flex; gap: 12px;">
+                <button type="submit" class="btn btn-primary">Cr&eacute;er</button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('new-key-form').style.display='none'">Annuler</button>
+            </div>
         </form>
     </div>
 
@@ -36,42 +51,47 @@
             <tr>
                 <th>ID</th>
                 <th>Provider</th>
-                <th>Aperçu</th>
-                <th>Modèles</th>
+                <th>Aper&ccedil;u</th>
+                <th>Mod&egrave;les</th>
                 <th>Status</th>
-                <th>Requêtes</th>
-                <th>Dernière utilisation</th>
+                <th>Requ&ecirc;tes</th>
+                <th>Derni&egrave;re utilisation</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for key in keys %}
             <tr>
-                <td>{{ key.id }}</td>
+                <td><span style="font-family: 'Fira Code', monospace; font-weight: 600;">#{{ key.id }}</span></td>
                 <td>{{ provider_map[key.provider_id] or 'Inconnu' }}</td>
-                <td><code>{{ key.key_preview }}</code></td>
-                <td>{{ key.models_allowed|join(', ') if key.models_allowed else 'Tous' }}</td>
+                <td><code style="background: #F3F4F6; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">{{ key.key_preview }}</code></td>
+                <td>{{ key.models_allowed|join(', ') if key.models_allowed else '<span style="color: var(--text-muted);">Tous</span>' }}</td>
                 <td>
                     {% if key.status == 'available' %}
                     <span class="status healthy">Disponible</span>
                     {% elif key.status == 'rate_limited' %}
                     <span class="status warning">Rate Limit</span>
                     {% elif key.status == 'quota_exhausted' %}
-                    <span class="status warning">Quota Épuisé</span>
+                    <span class="status warning">Quota &Eacute;puis&eacute;</span>
                     {% elif key.status == 'disabled' %}
-                    <span class="status unhealthy">Désactivée</span>
+                    <span class="status inactive">D&eacute;sactiv&eacute;e</span>
                     {% else %}
                     <span class="status">{{ key.status }}</span>
                     {% endif %}
                 </td>
-                <td>{{ key.total_requests }}</td>
-                <td>{{ key.last_used or 'Jamais' }}</td>
+                <td><span style="font-family: 'Fira Code', monospace; font-weight: 600;">{{ key.total_requests }}</span></td>
+                <td style="color: var(--text-muted); font-size: 0.85rem;">{{ key.last_used or 'Jamais' }}</td>
                 <td>
-                    <button class="btn btn-danger" style="padding: 5px 10px;"
+                    <button class="btn btn-danger btn-sm"
                             hx-delete="/admin/api-keys/{{ key.id }}"
-                            hx-confirm="Êtes-vous sûr ?"
+                            hx-confirm="Voulez-vous vraiment supprimer cette cl&eacute; ?"
                             hx-target="closest tr"
-                            hx-swap="outerHTML">🗑️</button>
+                            hx-swap="outerHTML">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
                 </td>
             </tr>
             {% endfor %}
