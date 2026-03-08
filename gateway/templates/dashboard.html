@@ -1,56 +1,118 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Vue d'ensemble de votre Gateway LLM</p>
+</div>
+
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-label">Requêtes 24h</div>
+        <div class="stat-icon primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+        </div>
+        <div class="stat-label">Requ&ecirc;tes 24h</div>
         <div class="stat-value">{{ stats.total_requests }}</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Requêtes OK</div>
+        <div class="stat-icon success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+        </div>
+        <div class="stat-label">Requ&ecirc;tes OK</div>
         <div class="stat-value">{{ stats.successful_requests }}</div>
     </div>
-    <div class="stat-card error">
-        <div class="stat-label">Échecs</div>
+    <div class="stat-card">
+        <div class="stat-icon error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+        </div>
+        <div class="stat-label">&Eacute;checs</div>
         <div class="stat-value">{{ stats.failed_requests }}</div>
     </div>
     <div class="stat-card">
+        <div class="stat-icon primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+        </div>
         <div class="stat-label">Latence Moyenne</div>
         <div class="stat-value">{{ stats.average_latency_ms }}ms</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Tokens Utilisés</div>
+        <div class="stat-icon success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+        </div>
+        <div class="stat-label">Tokens Utilis&eacute;s</div>
         <div class="stat-value">{{ stats.total_tokens }}</div>
     </div>
     <div class="stat-card">
+        <div class="stat-icon primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+        </div>
         <div class="stat-label">Providers Actifs</div>
         <div class="stat-value">{{ providers_count }}</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-label">Clés API</div>
-        <div class="stat-value">{{ total_keys }}</div>
-    </div>
 </div>
 
 <div class="panel">
-    <h2>📊 Statistiques Temps Réel</h2>
+    <div class="panel-header">
+        <h2 class="panel-title">Statistiques Temps R&eacute;el</h2>
+    </div>
     <div id="realtime-stats">
-        <p>Connexion en cours...</p>
+        <p style="color: var(--text-muted);">Connexion en cours...</p>
     </div>
 </div>
 
 <div class="panel">
-    <h2>🚀 Accès Rapide</h2>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-        <a href="/admin/opencode" class="btn" style="text-align: center;">🚀 Config OpenCode</a>
-        <a href="/admin/providers" class="btn btn-secondary" style="text-align: center;">🔌 Providers</a>
-        <a href="/admin/api-keys" class="btn btn-secondary" style="text-align: center;">🔑 Clés API</a>
-        <a href="/admin/analytics" class="btn btn-secondary" style="text-align: center;">📈 Analytics</a>
+    <div class="panel-header">
+        <h2 class="panel-title">Acc&egrave;s Rapide</h2>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+        <a href="/admin/opencode" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"/>
+                <polyline points="8 6 2 12 8 18"/>
+            </svg>
+            OpenCode
+        </a>
+        <a href="/admin/providers" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            Providers
+        </a>
+        <a href="/admin/api-keys" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+            Cl&eacute;s API
+        </a>
+        <a href="/admin/analytics" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            Analytics
+        </a>
     </div>
 </div>
 
 <script>
-    // Real-time stats via WebSocket
     function connectStatsWebSocket() {
         const ws = new WebSocket('ws://' + window.location.host + '/admin/ws/stats');
         
@@ -66,19 +128,19 @@
                     const health = data.data.health;
                     
                     let html = '<div class="stats-grid">';
-                    html += `<div class="stat-card"><div class="stat-label">Requêtes (1h)</div><div class="stat-value">${stats.total_requests}</div></div>`;
-                    html += `<div class="stat-card"><div class="stat-label">Succès</div><div class="stat-value">${stats.successful_requests}</div></div>`;
-                    html += `<div class="stat-card error"><div class="stat-label">Échecs</div><div class="stat-value">${stats.failed_requests}</div></div>`;
-                    html += `<div class="stat-card"><div class="stat-label">Latence</div><div class="stat-value">${stats.average_latency_ms}ms</div></div>`;
+                    html += '<div class="stat-card"><div class="stat-icon primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="stat-label">Requ&ecirc;tes (1h)</div><div class="stat-value">' + stats.total_requests + '</div></div>';
+                    html += '<div class="stat-card"><div class="stat-icon success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div class="stat-label">Succ&egrave;s</div><div class="stat-value">' + stats.successful_requests + '</div></div>';
+                    html += '<div class="stat-card"><div class="stat-icon error"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-label">&Eacute;checs</div><div class="stat-value">' + stats.failed_requests + '</div></div>';
+                    html += '<div class="stat-card"><div class="stat-icon primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-label">Latence</div><div class="stat-value">' + stats.average_latency_ms + 'ms</div></div>';
                     html += '</div>';
                     
-                    html += '<h3 style="margin-top: 20px;">État des Providers</h3><table><tr><th>Provider</th><th>Status</th><th>Clés Disponibles</th></tr>';
+                    html += '<div class="panel" style="margin-top: 24px;"><div class="panel-header"><h3 class="panel-title">&Eacute;tat des Providers</h3></div><table><thead><tr><th>Provider</th><th>Status</th><th>Cl&eacute;s Disponibles</th></tr></thead><tbody>';
                     health.forEach(function(h) {
                         const statusClass = h.is_healthy ? 'healthy' : 'unhealthy';
-                        const statusText = h.is_healthy ? 'OK' : 'KO';
-                        html += `<tr><td>${h.name}</td><td><span class="status ${statusClass}">${statusText}</span></td><td>${h.available_keys}/${h.total_keys}</td></tr>`;
+                        const statusText = h.is_healthy ? 'Actif' : 'Inactif';
+                        html += '<tr><td>' + h.name + '</td><td><span class="status ' + statusClass + '">' + statusText + '</span></td><td>' + (h.available_keys || 0) + '/' + (h.total_keys || 0) + '</td></tr>';
                     });
-                    html += '</table>';
+                    html += '</tbody></table></div>';
                     
                     document.getElementById('realtime-stats').innerHTML = html;
                 }
