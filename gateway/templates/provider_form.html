@@ -14,6 +14,7 @@
             <label>Type</label>
             <select name="provider_type" required>
                 <option value="ollama" {% if provider and provider.type == 'ollama' %}selected{% endif %}>Ollama</option>
+                <option value="google" {% if provider and provider.type == 'google' %}selected{% endif %}>Google (Gemini)</option>
                 <option value="openai" {% if provider and provider.type == 'openai' %}selected{% endif %}>OpenAI</option>
                 <option value="anthropic" {% if provider and provider.type == 'anthropic' %}selected{% endif %}>Anthropic</option>
             </select>

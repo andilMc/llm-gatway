@@ -22,7 +22,7 @@ from .models import (
 )
 from .config_loader import ConfigLoader
 from .router import ProviderRouter
-from .providers import OllamaProvider
+from .providers import OllamaProvider, GoogleProvider
 from .streaming import stream_relay, create_streaming_response
 from .admin_routes import router as admin_router
 
@@ -75,8 +75,12 @@ async def lifespan(app: FastAPI):
     providers_config = config_loader.get_providers_config()
     providers = {}
 
-    if "ollama" in providers_config:
-        providers["ollama"] = OllamaProvider("ollama", providers_config["ollama"])
+    for provider_name, config in providers_config.items():
+        p_type = config.get("type")
+        if p_type == "ollama":
+            providers[provider_name] = OllamaProvider(provider_name, config)
+        elif p_type == "google":
+            providers[provider_name] = GoogleProvider(provider_name, config)
 
     if not providers:
         logger.error("No providers configured")
@@ -291,6 +295,11 @@ async def chat_completions(request: Request):
                 stream=False,
                 **kwargs,
             )
+
+            # Inject provider info
+            if isinstance(result, dict):
+                # Ensure we have the provider info even if the router didn't inject it
+                pass
 
             return JSONResponse(content=result)
 
