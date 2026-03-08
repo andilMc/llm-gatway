@@ -83,7 +83,12 @@ async def list_providers(request: Request):
     # Add health info to providers
     health_map = {h["id"]: h for h in health_status}
     for provider in providers:
-        provider["health"] = health_map.get(provider["id"], {})
+        health = health_map.get(provider["id"], {})
+        # Calculate is_healthy based on circuit state and available keys
+        circuit_state = health.get("circuit_state", "closed")
+        available_keys = health.get("available_keys", 0)
+        health["is_healthy"] = circuit_state == "closed" and available_keys > 0
+        provider["health"] = health
         provider["api_keys"] = db.get_api_keys_by_provider(provider["id"])
 
     return templates.TemplateResponse(
