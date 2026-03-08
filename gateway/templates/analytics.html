@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Requêtes (24h)</div>
+        <div class="stat-value">{{ stats_24h.total_requests }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Succès (24h)</div>
+        <div class="stat-value">{{ stats_24h.successful_requests }}</div>
+    </div>
+    <div class="stat-card error">
+        <div class="stat-label">Échecs (24h)</div>
+        <div class="stat-value">{{ stats_24h.failed_requests }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Latence Moyenne</div>
+        <div class="stat-value">{{ stats_24h.average_latency_ms }}ms</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Tokens (24h)</div>
+        <div class="stat-value">{{ stats_24h.total_tokens }}</div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>📊 Statistiques sur 7 jours</h2>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Total Requêtes</div>
+            <div class="stat-value">{{ stats_7d.total_requests }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Succès</div>
+            <div class="stat-value">{{ stats_7d.successful_requests }}</div>
+        </div>
+        <div class="stat-card error">
+            <div class="stat-label">Échecs</div>
+            <div class="stat-value">{{ stats_7d.failed_requests }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Tokens</div>
+            <div class="stat-value">{{ stats_7d.total_tokens }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>📝 Requêtes Récentes</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Heure</th>
+                <th>Provider</th>
+                <th>Modèle</th>
+                <th>Status</th>
+                <th>Latence</th>
+                <th>Tokens</th>
+                <th>Erreur</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in recent_requests %}
+            <tr>
+                <td>{{ req.timestamp }}</td>
+                <td>{{ req.provider_name or '-' }}</td>
+                <td>{{ req.model_used or '-' }}</td>
+                <td>
+                    {% if req.status_code == 200 %}
+                    <span class="status healthy">OK</span>
+                    {% else %}
+                    <span class="status unhealthy">{{ req.status_code }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ req.latency_ms or '-' }}ms</td>
+                <td>{% if req.tokens_input or req.tokens_output %}{{ (req.tokens_input or 0) + (req.tokens_output or 0) }}{% else %}-{% endif %}</td>
+                <td>{{ req.error_message or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

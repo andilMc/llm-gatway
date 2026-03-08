@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>🧠 Modèles</h2>
+        <button class="btn" onclick="document.getElementById('new-model-form').style.display='block'">+ Nouveau Modèle</button>
+    </div>
+
+    <div id="new-model-form" style="display: none; margin-bottom: 30px; padding: 20px; background: #252525; border-radius: 8px;">
+        <h3>Nouveau Modèle</h3>
+        <form hx-post="/admin/models" hx-target="#models-table" hx-swap="outerHTML">
+            <div class="form-group">
+                <label>Alias (nom public)</label>
+                <input type="text" name="alias" placeholder="logic-supreme" required>
+            </div>
+            <div class="form-group">
+                <label>Nom technique</label>
+                <input type="text" name="technical_name" placeholder="kimi-k2.5:cloud" required>
+            </div>
+            <div class="form-group">
+                <label>Provider</label>
+                <select name="provider_id" required>
+                    {% for provider in providers %}
+                    <option value="{{ provider.id }}">{{ provider.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <input type="text" name="description" placeholder="Description optionnelle">
+            </div>
+            <button type="submit" class="btn">Créer</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('new-model-form').style.display='none'">Annuler</button>
+        </form>
+    </div>
+
+    <table id="models-table">
+        <thead>
+            <tr>
+                <th>Alias</th>
+                <th>Nom Technique</th>
+                <th>Provider</th>
+                <th>Description</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for model in models %}
+            <tr>
+                <td><strong>{{ model.alias }}</strong></td>
+                <td><code>{{ model.technical_name }}</code></td>
+                <td>{{ provider_map[model.provider_id] or 'Tous' }}</td>
+                <td>{{ model.description or '-' }}</td>
+                <td>
+                    {% if model.is_active %}
+                    <span class="status healthy">Actif</span>
+                    {% else %}
+                    <span class="status unhealthy">Inactif</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
